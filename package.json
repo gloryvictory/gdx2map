@@ -1,0 +1,50 @@
+{
+  "name": "gdx2map",
+  "version": "1.0.0",
+  "description": "map for gdx2 project",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run rimraf && tsc && vite build && npm run zip",
+    "rimraf": "rimraf dist && rimraf build",
+    "zip": "zip-build dist build",
+    "lint": "biome check --write ./src",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "Vyacheslav Zamaraev",
+  "license": "MIT",
+  "dependencies": {
+    "@deck.gl/core": "9.1.14",
+    "@deck.gl/layers": "9.1.14",
+    "@deck.gl/mapbox": "9.1.14",
+    "@deck.gl/react": "9.1.14",
+    "@luma.gl/shadertools": "9.1.9",
+    "@radix-ui/react-radio-group": "^1.2.1",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.2",
+    "@radix-ui/react-label": "^2.1.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.460.0",
+    "maplibre-gl": "^3.6.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-map-gl": "^7.1.7",
+    "react-resizable-panels": "^2.0.20",
+    "tailwind-merge": "^2.3.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.4",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.6"
+  }
+}
