@@ -1,0 +1,492 @@
+{
+  "services": {
+    "category": [
+      {
+        "name": "Esri",
+        "image": "esri",
+        "tms": [
+          {
+            "name": "esri_map",
+            "title": "Карта",
+            "description": "Топографическая карта мира Esri. Карта включает административные границы, города, водные объекты, физико-географические объекты, парки, достопримечательности, шоссе, дороги, железные дороги и аэропорты, наложенные на земной покров, а также изображения рельефа с оттенками.<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{LEVEL}/{COL}/{ROW}",
+            "level": {
+              "min": 1,
+              "max": 21
+            }
+          },
+          {
+            "name": "esri_streetmap",
+            "title": "Карта дорог",
+            "description": "Карта дорог Esri. Данные на уровне шоссе представлены для всего мира, а для многих стран и на уровне улиц. Карта включает автомагистрали, основные дороги, второстепенные дороги, стрелки с односторонним движением, железные дороги, водные объекты, административные границы, города, парки и ориентиры, наложенные на затемненные рельефные изображения. Карта также включает в себя контуры зданий для некоторых областей.<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{LEVEL}/{COL}/{ROW}",
+            "level": {
+              "min": 1,
+              "max": 21
+            }
+          },
+          {
+            "name": "esri_satellite",
+            "title": "Спутник",
+            "description": "Спутниковые снимки Esri. Спутниковые снимки с низким разрешением представлены для всего мира, а для многих областей спутниковые и аэрофотоснимки разрешением в один метр и лучше.<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{LEVEL}/{COL}/{ROW}",
+            "level": {
+              "min": 1,
+              "max": 21
+            }
+          },
+          {
+            "name": "esri_names_and_borders",
+            "title": "Названия и границы",
+            "description": "Карта названий и границ Esri на прозрачной подложке. Представлены границы стран, а также внутренние административные границы для большинства стран. Также на карте представлены географические названия для всего мира.  Эта карта предназначена для использования с картами имеющих светлый фон.<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places_Alternate/MapServer/tile/{LEVEL}/{COL}/{ROW}",
+            "level": {
+              "min": 1,
+              "max": 21
+            }
+          },
+          {
+            "name": "esri_names_and_borders_dark",
+            "title": "Названия и границы тёмные",
+            "description": "Карта названий и границ Esri на прозрачной подложке. Представлены границы стран, а также внутренние административные границы для большинства стран. Также на карте представлены географические названия для всего мира. Эта карта предназначена для использования с картами имеющих темный фон.<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{LEVEL}/{COL}/{ROW}",
+            "level": {
+              "min": 1,
+              "max": 21
+            }
+          },
+          {
+            "name": "esri_roads",
+            "title": "Дороги",
+            "description": "Карта дорог Esri на прозрачной подложке. Представлены данные о транспорте, включая автомагистрали, дороги, железные дороги и аэропорты мира<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{LEVEL}/{COL}/{ROW}",
+            "level": {
+              "min": 1,
+              "max": 21
+            }
+          },
+          {
+            "name": "esri_relief",
+            "title": "Рельеф",
+            "description": "Карта рельефа Esri. Обеспечивает визуализацию отмывкой ландшафта на белом фоне.<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{LEVEL}/{COL}/{ROW}.png",
+            "level": {
+              "min": 1,
+              "max": 13
+            }
+          },
+          {
+            "name": "esri_relief_dark",
+            "title": "Рельеф тёмный",
+            "description": "Карта рельефа Esri. Обеспечивает визуализацию отмывкой ландшафта на тёмном фоне.<br/><a href=\"https://www.esri.com/legal\">©Esri<\\a>",
+            "type": "xyz",
+            "url": "http://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade_Dark/MapServer/tile/{LEVEL}/{COL}/{ROW}.png",
+            "level": {
+              "min": 1,
+              "max": 13
+            }
+          }
+        ]
+      },
+      {
+        "name": "Google",
+        "image": "google",
+        "tms": [
+          {
+            "name": "google_map_ru",
+            "title": "Карта (рус)",
+            "description": "Подробная карта Google с серыми дорогами.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=r&hl=ru&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_map_en",
+            "title": "Карта (англ)",
+            "description": "Подробная карта Google на английском с серыми дорогами.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=r&hl=en&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_terrain_ru",
+            "title": "Ландшафт (рус)",
+            "description": "Подробная карта Google с рельефом и серыми дорогами.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=p&hl=ru&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_terrain_en",
+            "title": "Ландшафт (англ)",
+            "description": "Подробная карта Google на английском с рельефом и серыми дорогами.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=p&hl=en&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_streetmap_ru",
+            "title": "Карта дорог (рус)",
+            "description": "Подробная карта Google с рельефом и контрастными дорогами.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=m&hl=ru&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_streetmap_en",
+            "title": "Карта дорог (англ)",
+            "description": "Подробная карта Google на английском с рельефом и контрастными дорогами.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=m&hl=en&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_satellite",
+            "title": "Спутник",
+            "description": "Спутниковые снимки Google. Спутниковые снимки в высоком разрешении для всего мира.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=s&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_hybrid_ru",
+            "title": "Гибрид (рус)",
+            "description": "Гибридная карта Google, состоящая из названий улиц и других объектов наложенных на спутниковые снимки Google.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=y&hl=ru&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_hybrid_en",
+            "title": "Гибрид (англ)",
+            "description": "Гибридная карта Google на английском, состоящая из названий улиц и других объектов наложенных на спутниковые снимки Google.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=y&hl=en&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_schema_ru",
+            "title": "Схема (рус)",
+            "description": "Схема Google на прозрачной подложке, состоящая из границ, улиц и других объектов с названиями.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=h&hl=ru&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_schema_en",
+            "title": "Схема (англ)",
+            "description": "Схема Google на английском на прозрачной подложке, состоящая из границ, улиц и других объектов с названиями.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=h&hl=en&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_relief",
+            "title": "Рельеф",
+            "description": "Карта рельефа Google. Обеспечивает визуализацию отмывкой ландшафта на чёрном фоне.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt/lyrs=t&x={ROW}&y={COL}&z={LEVEL}"
+          },
+          {
+            "name": "google_traffic",
+            "title": "Пробки",
+            "description": "Пробки Google на прозрачной подложке.<br/><a href=\"https://www.google.com/help/terms_maps\">©Google<\\a>",
+            "type": "xyz",
+            "url": "http://mt[0123].google.com/vt?lyrs=h@159000000,traffic|seconds_into_week:-1&style=3&x={ROW}&y={COL}&z={LEVEL}",
+            "liveTime": 60
+          }
+        ]
+      },
+      {
+        "name": "Here",
+        "image": "here",
+        "tms": [
+          {
+            "name": "here_map_ru1",
+            "title": "Карта (рус)",
+            "description": "Подробная карта HERRE.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].base.maps.api.here.com/maptile/2.1/maptile/newest/normal.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_map_ru",
+            "title": "Карта (рус)",
+            "description": "Подробная карта HERRE.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].base.maps.api.here.com/maptile/2.1/maptile/newest/normal.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_map_en",
+            "title": "Карта (англ)",
+            "description": "Подробная карта HERRE на английском.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].base.maps.api.here.com/maptile/2.1/maptile/newest/normal.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=en&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_terrain_ru",
+            "title": "Ландшафт (рус)",
+            "description": "Подробная карта HERRE с рельефом и серыми дорогами.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/maptile/newest/terrain.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_terrain_en",
+            "title": "Ландшафт (англ)",
+            "description": "Подробная карта HERRE на английском с рельефом и серыми дорогами.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/maptile/newest/terrain.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=en&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_satellite",
+            "title": "Спутник",
+            "description": "Спутниковые снимки HERE. Спутниковые снимки в высоком разрешении для всего мира.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/maptile/newest/satellite.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_hybrid_ru",
+            "title": "Гибрид (рус)",
+            "description": "Гибридная карта HERE, состоящая из названий улиц и других объектов наложенных на спутниковые снимки HERE.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/maptile/newest/hybrid.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_hybrid_en",
+            "title": "Гибрид (англ)",
+            "description": "Гибридная карта HERE на английском, состоящая из названий улиц и других объектов наложенных на спутниковые снимки HERE.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/maptile/newest/hybrid.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=en&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_schema",
+            "title": "Схема",
+            "description": "Схема HERE на прозрачной подложке, состоящая из границ и дорог.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].base.maps.ls.hereapi.com/maptile/2.1/linetile/newest/normal.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_schema_dark",
+            "title": "Схема тёмная",
+            "description": "Схема HERE на прозрачной подложке, состоящая из границ и дорог. Эта карта предназначена для использования с картами имеющих тёмный фон.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/linetile/newest/hybrid.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_names_ru",
+            "title": "Названия (рус)",
+            "description": "Названия HERE на прозрачной подложке, состоящая из названий улиц и других объектов. Эта карта предназначена для использования с картами имеющих светлый фон.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].base.maps.ls.hereapi.com/maptile/2.1/labeltile/newest/normal.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_names_en",
+            "title": "Названия (англ)",
+            "description": "Названия HERE на английском на прозрачной подложке, состоящая из названий улиц и других объектов. Эта карта предназначена для использования с картами имеющих светлый фон.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].base.maps.ls.hereapi.com/maptile/2.1/labeltile/newest/normal.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=en&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_names_dark_ru",
+            "title": "Названия тёмные (рус)",
+            "description": "Названия HERE на прозрачной подложке, состоящая из названий улиц и других объектов. Эта карта предназначена для использования с картами имеющих тёмный фон.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/labeltile/newest/hybrid.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=rus&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_names_dark_en",
+            "title": "Названия тёмные (англ)",
+            "description": "Названия HERE на английском на прозрачной подложке, состоящая из названий улиц и других объектов. Эта карта предназначена для использования с картами имеющих тёмный фон.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].aerial.maps.api.here.com/maptile/2.1/labeltile/newest/hybrid.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=en&ppi=72&pview=DEF"
+          },
+          {
+            "name": "here_traffic",
+            "title": "Пробки",
+            "description": "Пробки Google на прозрачной подложке.<br/><a href=\"https://legal.here.com/terms\">©HERE<\\a>",
+            "type": "xyz",
+            "url": "https://[1234].traffic.maps.api.here.com/maptile/2.1/flowtile/newest/normal.day/{LEVEL}/{ROW}/{COL}/256/png8?apiKey=ULcxipCuamEAS6NsNntuAMM84LddvMOlXH0BsE2RfaU&app_code=djPZyynKsbTjIUDOBcHZ2g&lg=en&ppi=72&pview=DEF",
+            "level": {
+              "min": 7,
+              "max": 20
+            },
+            "liveTime": 60
+          }
+        ]
+      },
+      {
+        "name": "Mapbox",
+        "image": "mapbox",
+        "tms": [
+          {
+            "name": "mapbox_satellite",
+            "title": "Спутник",
+            "description": "Спутниковые снимки Mapbox. Спутниковые снимки в высоком разрешении для всего мира.<br/><a href=\"https://www.mapbox.com/legal/tos\">©Mapbox<\\a>",
+            "type": "xyz",
+            "url": "https://api.mapbox.com/v4/mapbox.satellite/{LEVEL}/{ROW}/{COL}.webp?sku=101GJw3CMQzGo&access_token=pk.eyJ1IjoiZXhhbXBsZXMiLCJhIjoiY2xxeTBib3pyMGsxcTJpbXQ3bmo4YXU0ZiJ9.wvqlBMQSxTHgvAh6l9OXXw",
+            "header": {
+              "referer": "https://api.mapbox.com/"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Maps for free",
+        "image": "mapsforfree",
+        "tms": [
+          {
+            "name": "mapsforfree",
+            "title": "Рельеф",
+            "description": "Бесплатная красочная карта рельефа мира Maps for free, которую можно легко интегрировать в существующие проекты карт.<br/><a href=\"https://maps-for-free.com/#openModal\">©maps-for-free.com<\\a>",
+            "type": "xyz",
+            "url": "https://maps-for-free.com/layer/relief/z{LEVEL}/row{COL}/{LEVEL}_{ROW}-{COL}.jpg",
+            "level": {
+              "min": 1,
+              "max": 11
+            }
+          }
+        ]
+      },
+      {
+        "name": "TomTom",
+        "image": "tomtom",
+        "tms": [
+          {
+            "name": "tomtom_map_ru",
+            "title": "Карта (рус)",
+            "description": "Подробная карта TomTom.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/basic/main/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=ru",
+            "level": {
+              "min": 1,
+              "max": 22
+            }
+          },
+          {
+            "name": "tomtom_map_en",
+            "title": "Карта (англ)",
+            "description": "Подробная карта TomTom на английском.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/basic/main/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=en"
+          },
+          {
+            "name": "tomtom_blackmap_ru",
+            "title": "Карта тёмная (рус)",
+            "description": "Подробная тёмная карта TomTom в .<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/basic/night/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=ru"
+          },
+          {
+            "name": "tomtom_blackmap_en",
+            "title": "Карта тёмная (англ)",
+            "description": "Подробная тёмная карта TomTom на английском.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/basic/night/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=en"
+          },
+          {
+            "name": "tomtom_schema_ru",
+            "title": "Схема (рус)",
+            "description": "Схема TomTom на прозрачной подложке, состоящая из границ, улиц и других объектов с названиями.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/hybrid/main/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=ru",
+            "level": {
+              "min": 1,
+              "max": 22
+            }
+          },
+          {
+            "name": "tomtom_streetmap_en",
+            "title": "Схема (англ)",
+            "description": "Схема TomTom на прозрачной подложке, состоящая из границ, улиц и других объектов с названиями.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/hybrid/main/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=en"
+          },
+          {
+            "name": "tomtom_names_ru",
+            "title": "Названия (рус)",
+            "description": "Названия TomTom на прозрачной подложке, состоящая из стран, городов и улиц.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/labels/main/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=ru",
+            "level": {
+              "min": 1,
+              "max": 22
+            }
+          },
+          {
+            "name": "tomtom_names_en",
+            "title": "Названия (англ)",
+            "description": "Названия TomTom на английском на прозрачной подложке, состоящая из стран, городов и улиц.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/labels/main/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=en"
+          },
+          {
+            "name": "tomtom_blacknames_ru",
+            "title": "Названия тёмные (рус)",
+            "description": "Названия тёмные TomTom на прозрачной подложке, состоящая из стран, городов и улиц.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/labels/night/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=ru",
+            "level": {
+              "min": 1,
+              "max": 22
+            }
+          },
+          {
+            "name": "tomtom_blacknames_en",
+            "title": "Названия тёмные (англ)",
+            "description": "Названия тёмные TomTom на английском на прозрачной подложке, состоящая из стран, городов и улиц.<br/><a href=\"https://www.tomtom.com/legal\">©TomTom<\\a>",
+            "type": "xyz",
+            "url": "https://[abcd].api.tomtom.com/map/1/tile/labels/night/{LEVEL}/{ROW}/{COL}.png?key=GAVaqXo5eqIKR6TyjJCVJ1EMfXetN9wc&language=en"
+          }
+        ]
+      },
+      {
+        "name": "Topomapper",
+        "image": "topomapper",
+        "tms": [
+          {
+            "name": "ussr_maps",
+            "title": "Советские топокарты",
+            "description": "",
+            "type": "xyz",
+            "url": "https://proxy.nakarte.me/http/88.99.52.155/tmg/{LEVEL}/{ROW}/{COL}",
+            "level": {
+              "min": 0,
+              "max": 13
+            }
+          }
+        ]
+      },
+      {
+        "name": "Росреестр",
+        "image": "rosreestr",
+        "tms": [
+          {
+            "name": "rosreestr_38",
+            "title": "Единая картоснова (ЕЭКО) v38",
+            "description": "Точность и полнота ЕЭКО позволяет использовать ее в качестве картографической основы (подложки, базовой карты, картографического фона) для отображения в наглядной форме пользовательской тематической информации, а также в качестве базовой геопривязанной информации для решения различных прикладных и расчетных задач (измерение площадей и координат любой точки или объекта в геодезических и прямоугольных координатах, в местной системе координат). <br/><a href=\"https://rosreestr.gov.ru/\">© Росреестр<\\a>",
+            "type": "xyz",
+            "url": "https://nspd.gov.ru/cgk/map/38/tms/{LEVEL}/{ROW}/{COL}.png",
+            "level": {
+              "min": 3,
+              "max": 16
+            }
+          }
+        ]
+      },
+      {
+        "name": "Яндекс",
+        "image": "yandex",
+        "tms": [
+          {
+            "name": "yandex_traffic",
+            "title": "Пробки",
+            "description": "Пробки Яндекс на прозрачной подложке.<br/><a href=\"https://yandex.ru/legal/maps_termsofuse\">©Яндекс<\\a>",
+            "type": "xyz",
+            "url": "https://core-jams-rdr-cache.maps.yandex.net/tiles?trf&l=trf&x={ROW}&y={COL}&z={LEVEL}&scale=1",
+            "level": {
+              "min": 4,
+              "max": 20
+            },
+            "cs": "CoordSys Earth Projection 10, 104, \"m\", 0  Bounds (-20037508.3429, -20037508.3429) (20037508.3429, 20037508.3429)",
+            "liveTime": 60
+          }
+        ]
+      }
+    ]
+  }
+}

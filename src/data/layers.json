@@ -1,0 +1,61 @@
+{
+  "services": {
+    "layers": [
+          {
+            "name": "stp",
+            "title": "Точки",
+            "description": "Точки",
+            "type": "xyz",
+            "url": "http://r48-vgeohub01.zsniigg.local:7800/gdx2.stp/{z}/{x}/{y}.pbf",
+            "level": {
+              "min": 0,
+              "max": 22
+            }
+          },
+          {
+            "name": "stl",
+            "title": "Линии",
+            "description": "Линии",
+            "type": "xyz",
+            "url": "http://r48-vgeohub01.zsniigg.local:7800/gdx2.stl/{z}/{x}/{y}.pbf",
+            "level": {
+              "min": 0,
+              "max": 22
+            }
+          },
+          {
+            "name": "sta",
+            "title": "Полигоны",
+            "description": "Полигоны",
+            "type": "xyz",
+            "url": "http://r48-vgeohub01.zsniigg.local:7800/gdx2.sta/{z}/{x}/{y}.pbf",
+            "level": {
+              "min": 0,
+              "max": 22
+            }
+          },
+          {
+            "name": "lu",
+            "title": "Лицензионные участки",
+            "description": "Лицензионные участки",
+            "type": "xyz",
+            "url": "http://r48-vgeohub01.zsniigg.local:7800/gdx2.lu/{z}/{x}/{y}.pbf",
+            "level": {
+              "min": 0,
+              "max": 22
+            }
+          },
+          {
+            "name": "field",
+            "title": "Месторождения",
+            "description": "Месторождения",
+            "type": "xyz",
+            "url": "http://r48-vgeohub01.zsniigg.local:7800/gdx2.field/{z}/{x}/{y}.pbf",
+            "level": {
+              "min": 0,
+              "max": 22
+            }
+          }
+    ]
+  }
+}
