@@ -10,7 +10,7 @@ import {
 type BasemapEntry = {
   key: string;
   label: string;
-  url: string | object;
+  url: string | object | null;
 };
 
 function expandBracketHost(url: string): string[] {
@@ -51,6 +51,7 @@ function buildFromServices(): BasemapEntry[] {
 }
 
 export const ALL_BASEMAPS: ReadonlyArray<BasemapEntry> = [
+  { key: 'none', label: 'Без базовой карты', url: null },
   ...PRESET_BASEMAPS,
   ...buildFromServices(),
 ];

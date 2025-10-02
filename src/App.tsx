@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppHeader } from './components/AppHeader';
 import { MapView } from './components/Map';
 import { RightPanel } from './components/RightPanel';
@@ -8,21 +8,58 @@ import { RadioGroup, RadioGroupItem } from './components/ui/radio-group';
 import { Checkbox } from './components/ui/checkbox';
 import { LIGHT_MAP_STYLE } from './constants/mapStyles';
 import { ALL_BASEMAPS } from './lib/basemaps';
-import layersData from './data/layers.json';
+import { TILE_SERVER_URL } from './config';
+
+type Layer = {
+  name: string;
+  title: string;
+  description: string;
+  type: string;
+  url: string;
+  level: { min: number; max: number };
+};
 
 export default function App() {
   const [basemapKey, setBasemapKey] = useState<string>('osm');
   const [showBaseMaps, setShowBaseMaps] = useState(false);
   const [showLayers, setShowLayers] = useState(false);
-  const [visibleLayers, setVisibleLayers] = useState<Set<string>>(() => {
-    const initial = new Set<string>();
-    layersData.services.layers.forEach(layer => initial.add(layer.name));
-    return initial;
-  });
+  const [layers, setLayers] = useState<Layer[]>([]);
+  const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    fetch(`${TILE_SERVER_URL}/catalog`)
+      .then(response => response.json())
+      .then(data => {
+        const tiles = data.tiles || {};
+        const titleMap: Record<string, string> = {
+          'gdx2.stp.geom': 'Отчеты - точки',
+          'gdx2.stl.geom': 'Отчеты - линии',
+          'gdx2.sta.geom': 'Отчеты - Полигоны',
+          'gdx2.lu.geom': 'Лицензионные участки',
+          'gdx2.field.geom': 'Месторождения',
+        };
+        const order = ['stp', 'stl', 'sta', 'lu', 'field'];
+        const fetchedLayers: Layer[] = Object.keys(tiles)
+          .map(tableName => ({
+            name: tableName,
+            title: titleMap[tiles[tableName].description] || tiles[tableName].description || tableName,
+            description: tiles[tableName].description || tableName,
+            type: 'xyz',
+            url: `${TILE_SERVER_URL}/${tableName}/{z}/{x}/{y}`,
+            level: { min: 0, max: 22 },
+          }))
+          .sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+        setLayers(fetchedLayers);
+        // Set all visible
+        const initialVisible = new Set(fetchedLayers.map(l => l.name));
+        setVisibleLayers(initialVisible);
+      })
+      .catch(error => console.error('Failed to fetch layers:', error));
+  }, []);
   const style = useMemo(() => {
     const found = ALL_BASEMAPS.find((b) => b.key === basemapKey);
-    return found?.url ?? LIGHT_MAP_STYLE;
+    return found ? found.url : LIGHT_MAP_STYLE;
   }, [basemapKey]);
 
   const handleLayersClick = () => {
@@ -66,7 +103,7 @@ export default function App() {
           <div className="absolute left-16 top-0 bottom-0 z-20 bg-background border-r border-border p-3 w-64">
             <h3 className="text-lg font-semibold mb-3">Слои</h3>
             <div className="space-y-2">
-              {layersData.services.layers.map((layer) => (
+              {layers.map((layer) => (
                 <div key={layer.name} className="flex items-center gap-2">
                   <Checkbox
                     id={`layer-${layer.name}`}
@@ -96,7 +133,7 @@ export default function App() {
         )}
         <div className={`absolute top-0 right-0 bottom-0 ${showBaseMaps || showLayers ? 'left-80' : 'left-16'}`}>
           <RightPanel selectedKey={basemapKey} onChangeBasemap={setBasemapKey}>
-            <MapView styleUrl={style as any} visibleLayers={visibleLayers} />
+            <MapView styleUrl={style as any} visibleLayers={visibleLayers} layers={layers} />
           </RightPanel>
         </div>
       </main>
