@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { AppHeader } from './components/AppHeader';
 import { MapView } from './components/Map';
 import { RightPanel } from './components/RightPanel';
 import { LeftPanel } from './components/LeftPanel';
+import { AttributesPanel } from './components/AttributesPanel';
 import { Label } from './components/ui/label';
 import { RadioGroup, RadioGroupItem } from './components/ui/radio-group';
 import { Checkbox } from './components/ui/checkbox';
@@ -23,8 +25,10 @@ export default function App() {
   const [basemapKey, setBasemapKey] = useState<string>('osm');
   const [showBaseMaps, setShowBaseMaps] = useState(false);
   const [showLayers, setShowLayers] = useState(false);
+  const [showAttributes, setShowAttributes] = useState(false);
   const [layers, setLayers] = useState<Layer[]>([]);
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
+  const [hoveredFeatures, setHoveredFeatures] = useState<any[]>([]);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -70,6 +74,10 @@ export default function App() {
     setShowBaseMaps(prev => !prev);
   };
 
+  const handleAttributesClick = () => {
+    setShowAttributes(prev => !prev);
+  };
+
   const handleLayerToggle = (layerName: string, checked: boolean) => {
     setVisibleLayers(prev => {
       const newSet = new Set(prev);
@@ -90,13 +98,15 @@ export default function App() {
   return (
     <div className={`min-h-screen bg-background text-foreground relative ${theme}`}>
       <AppHeader theme={theme} onThemeChange={setTheme} />
-      <main className="absolute top-14 left-0 right-0 bottom-8">
+      <main className="absolute top-14 left-0 right-0 bottom-0">
         <div className="absolute left-0 top-0 bottom-0 z-10">
           <LeftPanel
             onLayersClick={handleLayersClick}
             onBaseMapsClick={handleBaseMapsClick}
+            onAttributesClick={handleAttributesClick}
             isLayersActive={showLayers}
             isBaseMapsActive={showBaseMaps}
+            isAttributesActive={showAttributes}
           />
         </div>
         {showLayers && (
@@ -132,14 +142,27 @@ export default function App() {
           </div>
         )}
         <div className={`absolute top-0 right-0 bottom-0 ${showBaseMaps || showLayers ? 'left-80' : 'left-16'}`}>
-          <RightPanel selectedKey={basemapKey} onChangeBasemap={setBasemapKey}>
-            <MapView styleUrl={style as any} visibleLayers={visibleLayers} layers={layers} />
-          </RightPanel>
+          <PanelGroup direction="vertical" key={showAttributes ? 'active' : 'inactive'}>
+            <Panel defaultSize={showAttributes ? 60 : 80} minSize={30}>
+              <RightPanel hoveredFeatures={hoveredFeatures}>
+                <MapView styleUrl={style as any} visibleLayers={visibleLayers} layers={layers} onFeaturesHover={setHoveredFeatures} />
+              </RightPanel>
+            </Panel>
+            <PanelResizeHandle className="h-2 bg-border" />
+            <Panel defaultSize={showAttributes ? 30 : 10} minSize={5} maxSize={50}>
+              <AttributesPanel />
+            </Panel>
+            <PanelResizeHandle className="h-2 bg-border" />
+            <Panel defaultSize={10} minSize={5} maxSize={15}>
+              <div className="bg-muted border-t border-border flex items-center justify-center h-full">
+                <div className="w-1/2 flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground">Bottom Panel</p>
+                </div>
+              </div>
+            </Panel>
+          </PanelGroup>
         </div>
       </main>
-      <div className="absolute bottom-0 left-0 right-0 h-8 bg-muted border-t border-border flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Bottom Panel</p>
-      </div>
     </div>
   );
 }

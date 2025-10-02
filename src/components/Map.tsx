@@ -16,7 +16,8 @@ type Layer = {
   level: { min: number; max: number };
 };
 
-export function MapView({ styleUrl, visibleLayers, layers }: { styleUrl: string | object | null; visibleLayers: Set<string>; layers: Layer[] }) {
+export function MapView({ styleUrl, visibleLayers, layers, onFeaturesHover }: { styleUrl: string | object | null; visibleLayers: Set<string>; layers: Layer[]; onFeaturesHover: (features: any[]) => void }) {
+  const targetLayerNames = ['stp', 'stl', 'sta'];
   const mapRef = useRef<MapRef | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [viewState, setViewState] = useState<any>({
@@ -30,6 +31,30 @@ export function MapView({ styleUrl, visibleLayers, layers }: { styleUrl: string 
   const onMove = useCallback((evt: { viewState: ViewState }) => {
     setViewState(evt.viewState);
   }, []);
+
+  const onMouseMove = useCallback((evt: any) => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const visibleTargetLayers = targetLayerNames
+      .filter(name => visibleLayers.has(name))
+      .map(name => `gdx2.${name}`);
+
+    if (visibleTargetLayers.length === 0) {
+      onFeaturesHover([]);
+      map.getCanvas().style.cursor = '';
+      return;
+    }
+
+    const features = map.queryRenderedFeatures(evt.point, {
+      layers: visibleTargetLayers,
+    });
+    onFeaturesHover(features);
+
+    // Change cursor to pointer if features are found
+    map.getCanvas().style.cursor = features.length > 0 ? 'pointer' : '';
+  }, [mapLoaded, onFeaturesHover, visibleLayers]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -111,6 +136,7 @@ export function MapView({ styleUrl, visibleLayers, layers }: { styleUrl: string 
         style={{ width: '100%', height: '100%' }}
         onLoad={() => setMapLoaded(true)}
         onMove={onMove}
+        onMouseMove={onMouseMove}
       >
         <NavigationControl visualizePitch position="top-right" />
       </ReactMapGL>
