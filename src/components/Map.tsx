@@ -3,6 +3,7 @@ import * as maplibre from 'maplibre-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMapGL, {
   type MapRef,
+  Marker,
   NavigationControl,
   type ViewState,
 } from 'react-map-gl/maplibre';
@@ -16,7 +17,25 @@ type Layer = {
   level: { min: number; max: number };
 };
 
-export function MapView({ styleUrl, visibleLayers, layers, onFeaturesHover }: { styleUrl: string | object | null; visibleLayers: Set<string>; layers: Layer[]; onFeaturesHover: (features: any[]) => void }) {
+export function MapView({
+  styleUrl,
+  visibleLayers,
+  layers,
+  onFeaturesHover,
+  enableHover,
+  infoMode,
+  onClick,
+  marker
+}: {
+  styleUrl: string | object | null;
+  visibleLayers: Set<string>;
+  layers: Layer[];
+  onFeaturesHover: (features: any[]) => void;
+  enableHover: boolean;
+  infoMode: 'points' | 'lines' | 'polygons' | null;
+  onClick: (features: any[], lngLat: {lng: number, lat: number}) => void;
+  marker: {lng: number, lat: number} | null;
+}) {
   const targetLayerNames = ['stp', 'stl', 'sta'];
   const mapRef = useRef<MapRef | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -37,12 +56,21 @@ export function MapView({ styleUrl, visibleLayers, layers, onFeaturesHover }: { 
     const map = mapRef.current?.getMap();
     if (!map) return;
 
-    const visibleTargetLayers = targetLayerNames
+    let filteredTargetNames = targetLayerNames;
+    if (infoMode === 'points') {
+      filteredTargetNames = ['stp'];
+    } else if (infoMode === 'lines') {
+      filteredTargetNames = ['stl'];
+    } else if (infoMode === 'polygons') {
+      filteredTargetNames = ['sta'];
+    }
+
+    const visibleTargetLayers = filteredTargetNames
       .filter(name => visibleLayers.has(name))
       .map(name => `gdx2.${name}`);
 
     if (visibleTargetLayers.length === 0) {
-      onFeaturesHover([]);
+      if (enableHover) onFeaturesHover([]);
       map.getCanvas().style.cursor = '';
       return;
     }
@@ -50,13 +78,28 @@ export function MapView({ styleUrl, visibleLayers, layers, onFeaturesHover }: { 
     const features = map.queryRenderedFeatures(evt.point, {
       layers: visibleTargetLayers,
     });
-    onFeaturesHover(features);
+    if (enableHover) onFeaturesHover(features);
 
     // Change cursor to pointer if features are found
     map.getCanvas().style.cursor = features.length > 0 ? 'pointer' : '';
-  }, [mapLoaded, onFeaturesHover, visibleLayers]);
+  }, [mapLoaded, onFeaturesHover, visibleLayers, enableHover, infoMode]);
 
-  useEffect(() => {
+  const onMapClick = useCallback((evt: any) => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const visibleTargetLayers = targetLayerNames
+      .filter(name => visibleLayers.has(name))
+      .map(name => `gdx2.${name}`);
+
+    const features = map.queryRenderedFeatures(evt.point, {
+      layers: visibleTargetLayers,
+    });
+    onClick(features, { lng: evt.lngLat.lng, lat: evt.lngLat.lat });
+  }, [mapLoaded, visibleLayers, onClick]);
+
+  const updateLayers = useCallback(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
@@ -120,7 +163,11 @@ export function MapView({ styleUrl, visibleLayers, layers, onFeaturesHover }: { 
         }
       }
     });
-  }, [mapLoaded, visibleLayers]);
+  }, [mapLoaded, visibleLayers, layers]);
+
+  useEffect(() => {
+    updateLayers();
+  }, [updateLayers, styleUrl]);
 
   return (
     <div
@@ -135,10 +182,17 @@ export function MapView({ styleUrl, visibleLayers, layers, onFeaturesHover }: { 
         {...viewState}
         style={{ width: '100%', height: '100%' }}
         onLoad={() => setMapLoaded(true)}
+        onStyleLoad={() => updateLayers()}
         onMove={onMove}
         onMouseMove={onMouseMove}
+        onClick={onMapClick}
       >
         <NavigationControl visualizePitch position="top-right" />
+        {marker && (
+          <Marker longitude={marker.lng} latitude={marker.lat}>
+            <div style={{ color: 'red', fontSize: '24px' }}>📍</div>
+          </Marker>
+        )}
       </ReactMapGL>
     </div>
   );

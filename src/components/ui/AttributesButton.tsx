@@ -1,5 +1,5 @@
 import { Button } from './button';
-import { Table } from 'lucide-react';
+import { TableProperties } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +23,7 @@ export function AttributesButton({ onClick, isActive }: AttributesButtonProps) {
             className="w-10 h-10"
             onClick={onClick}
           >
-            <Table className="w-4 h-4" />
+            <TableProperties className="w-4 h-4" />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="right">

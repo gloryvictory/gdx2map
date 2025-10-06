@@ -29,6 +29,11 @@ export default function App() {
   const [layers, setLayers] = useState<Layer[]>([]);
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
   const [hoveredFeatures, setHoveredFeatures] = useState<any[]>([]);
+  const [clickedFeatures, setClickedFeatures] = useState<any[]>([]);
+  const [marker, setMarker] = useState<{lng: number, lat: number} | null>(null);
+  const [showFeatureTable, setShowFeatureTable] = useState(false);
+  const [activeInfoMode, setActiveInfoMode] = useState<'points' | 'lines' | 'polygons' | null>(null);
+  const [showMarkerInfo, setShowMarkerInfo] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function App() {
           'gdx2.lu.geom': 'Лицензионные участки',
           'gdx2.field.geom': 'Месторождения',
         };
-        const order = ['stp', 'stl', 'sta', 'lu', 'field'];
+        const order = ['field', 'lu', 'sta', 'stl', 'stp'];
         const fetchedLayers: Layer[] = Object.keys(tiles)
           .map(tableName => ({
             name: tableName,
@@ -144,8 +149,32 @@ export default function App() {
         <div className={`absolute top-0 right-0 bottom-0 ${showBaseMaps || showLayers ? 'left-80' : 'left-16'}`}>
           <PanelGroup direction="vertical" key={showAttributes ? 'active' : 'inactive'}>
             <Panel defaultSize={showAttributes ? 60 : 80} minSize={30}>
-              <RightPanel hoveredFeatures={hoveredFeatures}>
-                <MapView styleUrl={style as any} visibleLayers={visibleLayers} layers={layers} onFeaturesHover={setHoveredFeatures} />
+              <RightPanel
+                hoveredFeatures={hoveredFeatures}
+                clickedFeatures={clickedFeatures}
+                showFeatureTable={showFeatureTable}
+                onToggleFeatureTable={setShowFeatureTable}
+                activeInfoMode={activeInfoMode}
+                onSetActiveInfoMode={(mode) => {
+                  setActiveInfoMode(mode);
+                  if (mode) setShowMarkerInfo(false);
+                }}
+                showMarkerInfo={showMarkerInfo}
+                onToggleMarkerInfo={(show) => {
+                  setShowMarkerInfo(show);
+                  if (show) setActiveInfoMode(null);
+                }}
+              >
+                <MapView
+                  styleUrl={style as any}
+                  visibleLayers={visibleLayers}
+                  layers={layers}
+                  onFeaturesHover={setHoveredFeatures}
+                  enableHover={activeInfoMode !== null}
+                  infoMode={activeInfoMode}
+                  onClick={(features, lngLat) => { setClickedFeatures(features); setMarker(lngLat); }}
+                  marker={marker}
+                />
               </RightPanel>
             </Panel>
             <PanelResizeHandle className="h-2 bg-border" />
