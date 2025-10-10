@@ -5,6 +5,7 @@ import { MapView } from './components/Map';
 import { RightPanel } from './components/RightPanel';
 import { LeftPanel } from './components/LeftPanel';
 import { AttributesPanel } from './components/AttributesPanel';
+import { BottomPanel } from './components/BottomPanel';
 import { Label } from './components/ui/label';
 import { RadioGroup, RadioGroupItem } from './components/ui/radio-group';
 import { Checkbox } from './components/ui/checkbox';
@@ -35,6 +36,9 @@ export default function App() {
   const [activeInfoMode, setActiveInfoMode] = useState<'points' | 'lines' | 'polygons' | null>(null);
   const [showMarkerInfo, setShowMarkerInfo] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [attributesPointsData, setAttributesPointsData] = useState<any[]>([]);
+  const [attributesLinesData, setAttributesLinesData] = useState<any[]>([]);
+  const [attributesPolygonsData, setAttributesPolygonsData] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(`${TILE_SERVER_URL}/catalog`)
@@ -98,6 +102,27 @@ export default function App() {
   const handleBasemapSelect = (key: string) => {
     setBasemapKey(key);
     setShowBaseMaps(false);
+  };
+
+  const updateAttributesData = (features: any[]) => {
+    const points: any[] = [];
+    const lines: any[] = [];
+    const polygons: any[] = [];
+
+    features.forEach(feature => {
+      const type = feature.layer.id.split('.')[1];
+      if (type === 'stp') {
+        points.push(feature.properties);
+      } else if (type === 'stl') {
+        lines.push(feature.properties);
+      } else if (type === 'sta') {
+        polygons.push(feature.properties);
+      }
+    });
+
+    setAttributesPointsData(points);
+    setAttributesLinesData(lines);
+    setAttributesPolygonsData(polygons);
   };
 
   return (
@@ -164,6 +189,14 @@ export default function App() {
                   setShowMarkerInfo(show);
                   if (show) setActiveInfoMode(null);
                 }}
+                showAttributes={showAttributes}
+                onToggleAttributes={(show) => {
+                  if (show) {
+                    updateAttributesData(clickedFeatures);
+                    setActiveInfoMode(null);
+                  }
+                  setShowAttributes(show);
+                }}
               >
                 <MapView
                   styleUrl={style as any}
@@ -172,22 +205,18 @@ export default function App() {
                   onFeaturesHover={setHoveredFeatures}
                   enableHover={activeInfoMode !== null}
                   infoMode={activeInfoMode}
-                  onClick={(features, lngLat) => { setClickedFeatures(features); setMarker(lngLat); }}
+                  onClick={(features, lngLat) => { setClickedFeatures(features); if (showMarkerInfo) setMarker(lngLat); }}
                   marker={marker}
                 />
               </RightPanel>
             </Panel>
             <PanelResizeHandle className="h-2 bg-border" />
-            <Panel defaultSize={showAttributes ? 30 : 10} minSize={5} maxSize={50}>
-              <AttributesPanel />
+            <Panel defaultSize={showAttributes ? 50 : 20} minSize={20} maxSize={50}>
+              <AttributesPanel visibleLayers={visibleLayers} onLayerToggle={handleLayerToggle} pointsData={attributesPointsData} linesData={attributesLinesData} polygonsData={attributesPolygonsData} />
             </Panel>
-            <PanelResizeHandle className="h-2 bg-border" />
-            <Panel defaultSize={10} minSize={5} maxSize={15}>
-              <div className="bg-muted border-t border-border flex items-center justify-center h-full">
-                <div className="w-1/2 flex items-center justify-center">
-                  <p className="text-sm text-muted-foreground">Bottom Panel</p>
-                </div>
-              </div>
+            {/* <PanelResizeHandle className="h-2 bg-border" /> */}
+            <Panel defaultSize={2} minSize={2} maxSize={2}>
+              <BottomPanel />
             </Panel>
           </PanelGroup>
         </div>

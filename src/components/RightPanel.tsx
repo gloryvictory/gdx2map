@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { MapPin, Route, Square, Flag, FileSpreadsheet } from 'lucide-react';
+import { MapPin, Route, Square, Flag, FileSpreadsheet, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import {
@@ -21,6 +21,8 @@ interface RightPanelProps {
   onSetActiveInfoMode: (mode: 'points' | 'lines' | 'polygons' | null) => void;
   showMarkerInfo: boolean;
   onToggleMarkerInfo: (show: boolean) => void;
+  showAttributes: boolean;
+  onToggleAttributes: (show: boolean) => void;
 }
 
 function exportToExcel(features: any[]) {
@@ -96,7 +98,7 @@ function exportToExcel(features: any[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showAttributes, onToggleAttributes }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0);
 // isInfoPanelOpen ? 60 : 80
@@ -128,6 +130,21 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         <p>Выгрузка в Excel</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onToggleAttributes(!showAttributes)}
+                          className="h-8"
+                        >
+                          <Database className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>Атрибуты</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
