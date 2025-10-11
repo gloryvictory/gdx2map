@@ -39,6 +39,12 @@ export default function App() {
   const [attributesPointsData, setAttributesPointsData] = useState<any[]>([]);
   const [attributesLinesData, setAttributesLinesData] = useState<any[]>([]);
   const [attributesPolygonsData, setAttributesPolygonsData] = useState<any[]>([]);
+  const [mouseCoords, setMouseCoords] = useState<{lng: number, lat: number} | null>(null);
+  const [coordSystem, setCoordSystem] = useState<'EPSG:4326' | 'EPSG:3857'>('EPSG:4326');
+  const [currentZoom, setCurrentZoom] = useState<number>(2);
+  const [highlightedPoints, setHighlightedPoints] = useState<Set<string>>(new Set());
+  const [highlightedLines, setHighlightedLines] = useState<Set<string>>(new Set());
+  const [highlightedPolygons, setHighlightedPolygons] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch(`${TILE_SERVER_URL}/catalog`)
@@ -125,6 +131,39 @@ export default function App() {
     setAttributesPolygonsData(polygons);
   };
 
+  const toggleHighlightPoints = () => {
+    if (highlightedPoints.size > 0) {
+      setHighlightedPoints(new Set());
+    } else {
+      const ids = new Set(attributesPointsData.map(item => item.id?.toString()).filter(Boolean));
+      setHighlightedPoints(ids);
+      // Ensure layer is visible
+      setVisibleLayers(prev => new Set([...prev, 'stp']));
+    }
+  };
+
+  const toggleHighlightLines = () => {
+    if (highlightedLines.size > 0) {
+      setHighlightedLines(new Set());
+    } else {
+      const ids = new Set(attributesLinesData.map(item => item.id?.toString()).filter(Boolean));
+      setHighlightedLines(ids);
+      // Ensure layer is visible
+      setVisibleLayers(prev => new Set([...prev, 'stl']));
+    }
+  };
+
+  const toggleHighlightPolygons = () => {
+    if (highlightedPolygons.size > 0) {
+      setHighlightedPolygons(new Set());
+    } else {
+      const ids = new Set(attributesPolygonsData.map(item => item.id?.toString()).filter(Boolean));
+      setHighlightedPolygons(ids);
+      // Ensure layer is visible
+      setVisibleLayers(prev => new Set([...prev, 'sta']));
+    }
+  };
+
   return (
     <div className={`min-h-screen bg-background text-foreground relative ${theme}`}>
       <AppHeader theme={theme} onThemeChange={setTheme} />
@@ -143,7 +182,7 @@ export default function App() {
           <div className="absolute left-16 top-0 bottom-0 z-20 bg-background border-r border-border p-3 w-64">
             <h3 className="text-lg font-semibold mb-3">Слои</h3>
             <div className="space-y-2">
-              {layers.map((layer) => (
+              {[...layers].reverse().map((layer) => (
                 <div key={layer.name} className="flex items-center gap-2">
                   <Checkbox
                     id={`layer-${layer.name}`}
@@ -207,16 +246,33 @@ export default function App() {
                   infoMode={activeInfoMode}
                   onClick={(features, lngLat) => { setClickedFeatures(features); if (showMarkerInfo) setMarker(lngLat); }}
                   marker={marker}
+                  onMouseMoveCoords={setMouseCoords}
+                  highlightedPoints={highlightedPoints}
+                  highlightedLines={highlightedLines}
+                  highlightedPolygons={highlightedPolygons}
+                  onZoomChange={setCurrentZoom}
                 />
               </RightPanel>
             </Panel>
             <PanelResizeHandle className="h-2 bg-border" />
             <Panel defaultSize={showAttributes ? 50 : 20} minSize={20} maxSize={50}>
-              <AttributesPanel visibleLayers={visibleLayers} onLayerToggle={handleLayerToggle} pointsData={attributesPointsData} linesData={attributesLinesData} polygonsData={attributesPolygonsData} />
+              <AttributesPanel
+                visibleLayers={visibleLayers}
+                onLayerToggle={handleLayerToggle}
+                pointsData={attributesPointsData}
+                linesData={attributesLinesData}
+                polygonsData={attributesPolygonsData}
+                highlightedPoints={highlightedPoints}
+                highlightedLines={highlightedLines}
+                highlightedPolygons={highlightedPolygons}
+                onToggleHighlightPoints={toggleHighlightPoints}
+                onToggleHighlightLines={toggleHighlightLines}
+                onToggleHighlightPolygons={toggleHighlightPolygons}
+              />
             </Panel>
             {/* <PanelResizeHandle className="h-2 bg-border" /> */}
             <Panel defaultSize={2} minSize={2} maxSize={2}>
-              <BottomPanel />
+              <BottomPanel mouseCoords={mouseCoords} coordSystem={coordSystem} onCoordSystemChange={setCoordSystem} zoom={currentZoom} />
             </Panel>
           </PanelGroup>
         </div>

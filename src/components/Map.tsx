@@ -25,7 +25,12 @@ export function MapView({
   enableHover,
   infoMode,
   onClick,
-  marker
+  marker,
+  onMouseMoveCoords,
+  highlightedPoints,
+  highlightedLines,
+  highlightedPolygons,
+  onZoomChange
 }: {
   styleUrl: string | object | null;
   visibleLayers: Set<string>;
@@ -35,6 +40,11 @@ export function MapView({
   infoMode: 'points' | 'lines' | 'polygons' | null;
   onClick: (features: any[], lngLat: {lng: number, lat: number}) => void;
   marker: {lng: number, lat: number} | null;
+  onMouseMoveCoords: (coords: {lng: number, lat: number} | null) => void;
+  highlightedPoints: Set<string>;
+  highlightedLines: Set<string>;
+  highlightedPolygons: Set<string>;
+  onZoomChange: (zoom: number) => void;
 }) {
   const targetLayerNames = ['stp', 'stl', 'sta'];
   const mapRef = useRef<MapRef | null>(null);
@@ -49,12 +59,16 @@ export function MapView({
 
   const onMove = useCallback((evt: { viewState: ViewState }) => {
     setViewState(evt.viewState);
-  }, []);
+    onZoomChange(evt.viewState.zoom);
+  }, [onZoomChange]);
 
   const onMouseMove = useCallback((evt: any) => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
+
+    // Update mouse coordinates
+    onMouseMoveCoords({ lng: evt.lngLat.lng, lat: evt.lngLat.lat });
 
     let filteredTargetNames = targetLayerNames;
     if (infoMode === 'points') {
@@ -82,7 +96,7 @@ export function MapView({
 
     // Change cursor to pointer if features are found
     map.getCanvas().style.cursor = features.length > 0 ? 'pointer' : '';
-  }, [mapLoaded, onFeaturesHover, visibleLayers, enableHover, infoMode]);
+  }, [mapLoaded, onFeaturesHover, visibleLayers, enableHover, infoMode, onMouseMoveCoords]);
 
   const onMapClick = useCallback((evt: any) => {
     if (!mapLoaded) return;
@@ -114,6 +128,7 @@ export function MapView({
 
       const sourceId = config.layer.source as string;
       const layerId = config.layer.id;
+      const highlightLayerId = `${layerId}-highlight`;
 
       if (visibleLayers.has(layer.name)) {
         // Add source if not exists
@@ -137,11 +152,60 @@ export function MapView({
             map.triggerRepaint();
           }
         }
+
+        // Add highlight layer if there are highlighted features
+        let highlightedIds: string[] = [];
+        if (layer.name === 'stp' && highlightedPoints.size > 0) {
+          highlightedIds = Array.from(highlightedPoints);
+        } else if (layer.name === 'stl' && highlightedLines.size > 0) {
+          highlightedIds = Array.from(highlightedLines);
+        } else if (layer.name === 'sta' && highlightedPolygons.size > 0) {
+          highlightedIds = Array.from(highlightedPolygons);
+        }
+
+        if (highlightedIds.length > 0) {
+          if (!map.getLayer(highlightLayerId)) {
+            const highlightLayer = { ...config.layer };
+            highlightLayer.id = highlightLayerId;
+            highlightLayer.filter = ['in', 'id', ...highlightedIds.map(id => parseInt(id))];
+            // Modify style for highlight
+            if (highlightLayer.type === 'circle') {
+              highlightLayer.paint = {
+                ...highlightLayer.paint,
+                'circle-color': 'red',
+                'circle-radius': 6,
+              };
+            } else if (highlightLayer.type === 'line') {
+              highlightLayer.paint = {
+                ...highlightLayer.paint,
+                'line-color': 'red',
+                'line-width': 3,
+              };
+            } else if (highlightLayer.type === 'fill') {
+              highlightLayer.paint = {
+                ...highlightLayer.paint,
+                'fill-color': 'red',
+                'fill-opacity': 0.8,
+              };
+            }
+            map.addLayer(highlightLayer, layerId); // Add above the main layer
+            map.triggerRepaint();
+          }
+        } else {
+          // Remove highlight layer if no highlights
+          if (map.getLayer(highlightLayerId)) {
+            map.removeLayer(highlightLayerId);
+          }
+        }
       } else {
         // Remove layer if exists
         if (map.getLayer(layerId)) {
           console.log('Removing layer', layerId);
           map.removeLayer(layerId);
+        }
+        // Remove highlight layer
+        if (map.getLayer(highlightLayerId)) {
+          map.removeLayer(highlightLayerId);
         }
         // For lu, remove labels too
         if (layer.name === 'lu') {
@@ -163,7 +227,7 @@ export function MapView({
         }
       }
     });
-  }, [mapLoaded, visibleLayers, layers]);
+  }, [mapLoaded, visibleLayers, layers, highlightedPoints, highlightedLines, highlightedPolygons]);
 
   useEffect(() => {
     updateLayers();
@@ -185,6 +249,7 @@ export function MapView({
         onStyleLoad={() => updateLayers()}
         onMove={onMove}
         onMouseMove={onMouseMove}
+        onMouseLeave={() => onMouseMoveCoords(null)}
         onClick={onMapClick}
       >
         <NavigationControl visualizePitch position="top-right" />

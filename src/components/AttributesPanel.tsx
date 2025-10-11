@@ -22,9 +22,27 @@ interface AttributesPanelProps {
   pointsData: any[];
   linesData: any[];
   polygonsData: any[];
+  highlightedPoints: Set<string>;
+  highlightedLines: Set<string>;
+  highlightedPolygons: Set<string>;
+  onToggleHighlightPoints: () => void;
+  onToggleHighlightLines: () => void;
+  onToggleHighlightPolygons: () => void;
 }
 
-export function AttributesPanel({ visibleLayers, onLayerToggle, pointsData, linesData, polygonsData }: AttributesPanelProps) {
+export function AttributesPanel({
+  visibleLayers,
+  onLayerToggle,
+  pointsData,
+  linesData,
+  polygonsData,
+  highlightedPoints,
+  highlightedLines,
+  highlightedPolygons,
+  onToggleHighlightPoints,
+  onToggleHighlightLines,
+  onToggleHighlightPolygons
+}: AttributesPanelProps) {
 
   const fieldDescriptions: Record<string, string> = {
     avts: 'Автор',
@@ -69,15 +87,15 @@ export function AttributesPanel({ visibleLayers, onLayerToggle, pointsData, line
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onLayerToggle('stp', !visibleLayers.has('stp'))}
+                    onClick={onToggleHighlightPoints}
                     className="h-8"
                   >
                     <Eye className="w-4 h-4 mr-1" />
-                    Показать все на карте
+                    {highlightedPoints.size > 0 ? 'Вернуть обратно' : 'Показать на карте'}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>Показать все точки на карте</p>
+                  <p>{highlightedPoints.size > 0 ? 'Убрать подсветку точек' : 'Подсветить все точки на карте'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -101,15 +119,15 @@ export function AttributesPanel({ visibleLayers, onLayerToggle, pointsData, line
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onLayerToggle('stl', !visibleLayers.has('stl'))}
+                    onClick={onToggleHighlightLines}
                     className="h-8"
                   >
                     <Eye className="w-4 h-4 mr-1" />
-                    Показать все на карте
+                    {highlightedLines.size > 0 ? 'Вернуть обратно' : 'Показать на карте'}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>Показать все линии на карте</p>
+                  <p>{highlightedLines.size > 0 ? 'Убрать подсветку линий' : 'Подсветить все линии на карте'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -133,15 +151,15 @@ export function AttributesPanel({ visibleLayers, onLayerToggle, pointsData, line
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onLayerToggle('sta', !visibleLayers.has('sta'))}
+                    onClick={onToggleHighlightPolygons}
                     className="h-8"
                   >
                     <Eye className="w-4 h-4 mr-1" />
-                    Показать все на карте
+                    {highlightedPolygons.size > 0 ? 'Вернуть обратно' : 'Показать на карте'}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>Показать все полигоны на карте</p>
+                  <p>{highlightedPolygons.size > 0 ? 'Убрать подсветку полигонов' : 'Подсветить все полигоны на карте'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
