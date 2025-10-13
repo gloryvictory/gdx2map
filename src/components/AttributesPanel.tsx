@@ -4,7 +4,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
-import { Eye } from 'lucide-react';
+import { Eye, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Tooltip,
@@ -12,6 +12,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from './ui/context-menu';
 
 // Register all community features
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -28,6 +34,9 @@ interface AttributesPanelProps {
   onToggleHighlightPoints: () => void;
   onToggleHighlightLines: () => void;
   onToggleHighlightPolygons: () => void;
+  selectedAttributeRow: any;
+  onAttributeRowSelect: (row: any, type: 'points' | 'lines' | 'polygons') => void;
+  onZoomToFeature: (row: any, type: 'points' | 'lines' | 'polygons') => void;
 }
 
 export function AttributesPanel({
@@ -41,7 +50,10 @@ export function AttributesPanel({
   highlightedPolygons,
   onToggleHighlightPoints,
   onToggleHighlightLines,
-  onToggleHighlightPolygons
+  onToggleHighlightPolygons,
+  selectedAttributeRow,
+  onAttributeRowSelect,
+  onZoomToFeature
 }: AttributesPanelProps) {
 
   const fieldDescriptions: Record<string, string> = {
@@ -101,14 +113,56 @@ export function AttributesPanel({
             </TooltipProvider>
           </div>
           <div className="ag-theme-alpine" style={{ height: 300, width: '100%' }}>
-            <AgGridReact
-              key={pointsData.length}
-              rowData={pointsData}
-              columnDefs={columns}
-              defaultColDef={{ flex: 1, minWidth: 100 }}
-              ensureDomOrder
-              suppressNoRowsOverlay={false}
-            />
+            <ContextMenu>
+              <ContextMenuTrigger>
+                <AgGridReact
+                  key={pointsData.length}
+                  rowData={pointsData}
+                  columnDefs={columns}
+                  defaultColDef={{ flex: 1, minWidth: 100 }}
+                  ensureDomOrder
+                  suppressNoRowsOverlay={false}
+                  rowSelection="single"
+                  onRowClicked={(event) => onAttributeRowSelect(event.data, 'points')}
+                  getRowStyle={(params) => {
+                    if (selectedAttributeRow && selectedAttributeRow.type === 'points' && selectedAttributeRow.data.id === params.data.id) {
+                      return { backgroundColor: '#e3f2fd' };
+                    }
+                    return undefined;
+                  }}
+                  onGridReady={(params) => {
+                    // Store grid API for context menu
+                    (params.api as any).__contextMenuType = 'points';
+                    (params.api as any).__onZoomToFeature = onZoomToFeature;
+                  }}
+                />
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => {
+                  // Get the grid API from the context
+                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
+                  let selectedRow = null;
+                  let type = 'points';
+                  for (const grid of grids) {
+                    const api = (grid as any).__agGridApi;
+                    if (api && api.getSelectedRows) {
+                      const selectedRows = api.getSelectedRows();
+                      if (selectedRows.length > 0) {
+                        selectedRow = selectedRows[0];
+                        type = (grid as any).__contextMenuType || 'points';
+                        break;
+                      }
+                    }
+                  }
+                  if (selectedRow) {
+                    onZoomToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                  }
+                }}>
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Показать на карте
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           </div>
         </TabsContent>
         <TabsContent value="lines">
@@ -133,14 +187,56 @@ export function AttributesPanel({
             </TooltipProvider>
           </div>
           <div className="ag-theme-alpine" style={{ height: 300, width: '100%' }}>
-            <AgGridReact
-              key={linesData.length}
-              rowData={linesData}
-              columnDefs={columns}
-              defaultColDef={{ flex: 1, minWidth: 100 }}
-              ensureDomOrder
-              suppressNoRowsOverlay={false}
-            />
+            <ContextMenu>
+              <ContextMenuTrigger>
+                <AgGridReact
+                  key={linesData.length}
+                  rowData={linesData}
+                  columnDefs={columns}
+                  defaultColDef={{ flex: 1, minWidth: 100 }}
+                  ensureDomOrder
+                  suppressNoRowsOverlay={false}
+                  rowSelection="single"
+                  onRowClicked={(event) => onAttributeRowSelect(event.data, 'lines')}
+                  getRowStyle={(params) => {
+                    if (selectedAttributeRow && selectedAttributeRow.type === 'lines' && selectedAttributeRow.data.id === params.data.id) {
+                      return { backgroundColor: '#e3f2fd' };
+                    }
+                    return undefined;
+                  }}
+                  onGridReady={(params) => {
+                    // Store grid API for context menu
+                    (params.api as any).__contextMenuType = 'lines';
+                    (params.api as any).__onZoomToFeature = onZoomToFeature;
+                  }}
+                />
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => {
+                  // Get the grid API from the context
+                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
+                  let selectedRow = null;
+                  let type = 'lines';
+                  for (const grid of grids) {
+                    const api = (grid as any).__agGridApi;
+                    if (api && api.getSelectedRows) {
+                      const selectedRows = api.getSelectedRows();
+                      if (selectedRows.length > 0) {
+                        selectedRow = selectedRows[0];
+                        type = (grid as any).__contextMenuType || 'lines';
+                        break;
+                      }
+                    }
+                  }
+                  if (selectedRow) {
+                    onZoomToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                  }
+                }}>
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Показать на карте
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           </div>
         </TabsContent>
         <TabsContent value="polygons">
@@ -165,14 +261,56 @@ export function AttributesPanel({
             </TooltipProvider>
           </div>
           <div className="ag-theme-alpine" style={{ height: 300, width: '100%' }}>
-            <AgGridReact
-              key={polygonsData.length}
-              rowData={polygonsData}
-              columnDefs={columns}
-              defaultColDef={{ flex: 1, minWidth: 100 }}
-              ensureDomOrder
-              suppressNoRowsOverlay={false}
-            />
+            <ContextMenu>
+              <ContextMenuTrigger>
+                <AgGridReact
+                  key={polygonsData.length}
+                  rowData={polygonsData}
+                  columnDefs={columns}
+                  defaultColDef={{ flex: 1, minWidth: 100 }}
+                  ensureDomOrder
+                  suppressNoRowsOverlay={false}
+                  rowSelection="single"
+                  onRowClicked={(event) => onAttributeRowSelect(event.data, 'polygons')}
+                  getRowStyle={(params) => {
+                    if (selectedAttributeRow && selectedAttributeRow.type === 'polygons' && selectedAttributeRow.data.id === params.data.id) {
+                      return { backgroundColor: '#e3f2fd' };
+                    }
+                    return undefined;
+                  }}
+                  onGridReady={(params) => {
+                    // Store grid API for context menu
+                    (params.api as any).__contextMenuType = 'polygons';
+                    (params.api as any).__onZoomToFeature = onZoomToFeature;
+                  }}
+                />
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => {
+                  // Get the grid API from the context
+                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
+                  let selectedRow = null;
+                  let type = 'polygons';
+                  for (const grid of grids) {
+                    const api = (grid as any).__agGridApi;
+                    if (api && api.getSelectedRows) {
+                      const selectedRows = api.getSelectedRows();
+                      if (selectedRows.length > 0) {
+                        selectedRow = selectedRows[0];
+                        type = (grid as any).__contextMenuType || 'polygons';
+                        break;
+                      }
+                    }
+                  }
+                  if (selectedRow) {
+                    onZoomToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                  }
+                }}>
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Показать на карте
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           </div>
         </TabsContent>
       </Tabs>

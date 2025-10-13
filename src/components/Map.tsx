@@ -1,6 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as maplibre from 'maplibre-gl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import ReactMapGL, {
   type MapRef,
   Marker,
@@ -17,21 +17,7 @@ type Layer = {
   level: { min: number; max: number };
 };
 
-export function MapView({
-  styleUrl,
-  visibleLayers,
-  layers,
-  onFeaturesHover,
-  enableHover,
-  infoMode,
-  onClick,
-  marker,
-  onMouseMoveCoords,
-  highlightedPoints,
-  highlightedLines,
-  highlightedPolygons,
-  onZoomChange
-}: {
+export const MapView = forwardRef<any, {
   styleUrl: string | object | null;
   visibleLayers: Set<string>;
   layers: Layer[];
@@ -45,10 +31,34 @@ export function MapView({
   highlightedLines: Set<string>;
   highlightedPolygons: Set<string>;
   onZoomChange: (zoom: number) => void;
-}) {
+  selectedFeature: any;
+  hoveredFeature: any;
+  selectedAttributeRow: any;
+}>(({
+  styleUrl,
+  visibleLayers,
+  layers,
+  onFeaturesHover,
+  enableHover,
+  infoMode,
+  onClick,
+  marker,
+  onMouseMoveCoords,
+  highlightedPoints,
+  highlightedLines,
+  highlightedPolygons,
+  onZoomChange,
+  selectedFeature,
+  hoveredFeature,
+  selectedAttributeRow
+}, ref) => {
   const targetLayerNames = ['stp', 'stl', 'sta'];
   const mapRef = useRef<MapRef | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    getMap: () => mapRef.current?.getMap()
+  }));
   const [viewState, setViewState] = useState<any>({
     longitude: 77,
     latitude: 76,
@@ -230,6 +240,161 @@ export function MapView({
   }, [mapLoaded, visibleLayers, layers, highlightedPoints, highlightedLines, highlightedPolygons]);
 
   useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Add selected feature highlight layer
+    const selectedLayerId = 'selected-feature-highlight';
+    if (selectedFeature) {
+      if (!map.getLayer(selectedLayerId)) {
+        const layerType = selectedFeature.layer.id.split('.')[1];
+        const config = layersConfig[layerType];
+        if (config) {
+          const selectedLayer = { ...config.layer };
+          selectedLayer.id = selectedLayerId;
+          selectedLayer.filter = ['==', 'id', selectedFeature.properties.id];
+          // Modify style for selection
+          if (selectedLayer.type === 'circle') {
+            selectedLayer.paint = {
+              ...selectedLayer.paint,
+              'circle-color': 'yellow',
+              'circle-radius': 8,
+              'circle-stroke-color': 'black',
+              'circle-stroke-width': 2,
+            };
+          } else if (selectedLayer.type === 'line') {
+            selectedLayer.paint = {
+              ...selectedLayer.paint,
+              'line-color': 'yellow',
+              'line-width': 5,
+            };
+          } else if (selectedLayer.type === 'fill') {
+            selectedLayer.paint = {
+              ...selectedLayer.paint,
+              'fill-color': 'yellow',
+              'fill-opacity': 0.9,
+            };
+          }
+          map.addLayer(selectedLayer); // Add above all layers
+          map.triggerRepaint();
+        }
+      }
+    } else {
+      if (map.getLayer(selectedLayerId)) {
+        map.removeLayer(selectedLayerId);
+      }
+    }
+  }, [selectedFeature, mapLoaded]);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Add hover highlight layer
+    const hoverLayerId = 'hover-feature-highlight';
+    if (hoveredFeature) {
+      if (!map.getLayer(hoverLayerId)) {
+        const layerType = hoveredFeature.layer.id.split('.')[1];
+        const config = layersConfig[layerType];
+        if (config) {
+          const hoverLayer = { ...config.layer };
+          hoverLayer.id = hoverLayerId;
+          hoverLayer.filter = ['==', 'id', hoveredFeature.properties.id];
+          // Modify style for hover
+          if (hoverLayer.type === 'circle') {
+            hoverLayer.paint = {
+              ...hoverLayer.paint,
+              'circle-color': 'orange',
+              'circle-radius': 7,
+            };
+          } else if (hoverLayer.type === 'line') {
+            hoverLayer.paint = {
+              ...hoverLayer.paint,
+              'line-color': 'orange',
+              'line-width': 4,
+            };
+          } else if (hoverLayer.type === 'fill') {
+            hoverLayer.paint = {
+              ...hoverLayer.paint,
+              'fill-color': 'orange',
+              'fill-opacity': 0.7,
+            };
+          }
+          map.addLayer(hoverLayer); // Add above all layers
+          map.triggerRepaint();
+        }
+      }
+    } else {
+      if (map.getLayer(hoverLayerId)) {
+        map.removeLayer(hoverLayerId);
+      }
+    }
+  }, [hoveredFeature, mapLoaded]);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Add selected attribute row highlight layer
+    const selectedAttributeLayerId = 'selected-attribute-highlight';
+    if (selectedAttributeRow) {
+      if (!map.getLayer(selectedAttributeLayerId)) {
+        const layerType = selectedAttributeRow.type === 'points' ? 'stp' : selectedAttributeRow.type === 'lines' ? 'stl' : 'sta';
+        const config = layersConfig[layerType];
+        if (config) {
+          const selectedAttributeLayer = { ...config.layer };
+          selectedAttributeLayer.id = selectedAttributeLayerId;
+          selectedAttributeLayer.filter = ['==', 'id', selectedAttributeRow.data.id];
+          // Modify style for selection
+          if (selectedAttributeLayer.type === 'circle') {
+            selectedAttributeLayer.paint = {
+              ...selectedAttributeLayer.paint,
+              'circle-color': 'purple',
+              'circle-radius': 8,
+              'circle-stroke-color': 'black',
+              'circle-stroke-width': 2,
+            };
+          } else if (selectedAttributeLayer.type === 'line') {
+            selectedAttributeLayer.paint = {
+              ...selectedAttributeLayer.paint,
+              'line-color': 'purple',
+              'line-width': 5,
+            };
+          } else if (selectedAttributeLayer.type === 'fill') {
+            selectedAttributeLayer.paint = {
+              ...selectedAttributeLayer.paint,
+              'fill-color': 'purple',
+              'fill-opacity': 0.9,
+            };
+          }
+          map.addLayer(selectedAttributeLayer); // Add above all layers
+          map.triggerRepaint();
+        }
+      }
+    } else {
+      if (map.getLayer(selectedAttributeLayerId)) {
+        map.removeLayer(selectedAttributeLayerId);
+      }
+    }
+  }, [selectedAttributeRow, mapLoaded]);
+
+  useEffect(() => {
+    if (!mapLoaded || !selectedFeature) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Zoom to selected feature
+    map.flyTo({
+      center: [selectedFeature.geometry.coordinates[0], selectedFeature.geometry.coordinates[1]],
+      zoom: 12,
+      duration: 1000
+    });
+  }, [selectedFeature, mapLoaded]);
+
+  useEffect(() => {
     updateLayers();
   }, [updateLayers, styleUrl]);
 
@@ -261,4 +426,4 @@ export function MapView({
       </ReactMapGL>
     </div>
   );
-}
+});

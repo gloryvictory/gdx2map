@@ -3,11 +3,18 @@ import { MapGeoJSONFeature } from 'maplibre-gl';
 interface FeatureTableProps {
   feature: MapGeoJSONFeature;
   index: number;
+  selectedFeature: any;
+  onFeatureSelect: (feature: any) => void;
+  onFeatureHover: (feature: any) => void;
 }
 
-export const FeatureTable = ({ feature, index }: FeatureTableProps) => {
+export const FeatureTable = ({ feature, index, selectedFeature, onFeatureSelect, onFeatureHover }: FeatureTableProps) => {
   const properties = feature.properties || {};
-  
+
+  // Определение типа геометрии
+  const layerType = feature.layer.id.split('.')[1];
+  const geometryType = layerType === 'stp' ? 'точка' : layerType === 'stl' ? 'линия' : 'полигон';
+
   // Массив строк таблицы с названиями и ключами свойств
   const tableRows = [
     { label: 'Автор', key: 'avts' },
@@ -23,15 +30,22 @@ export const FeatureTable = ({ feature, index }: FeatureTableProps) => {
     { label: 'инв. № ТГФ', key: 'in_n_tgf' },
     { label: '№ РГФ', key: 'n_uk_rosg' },
     { label: '№ ТГФ', key: 'n_uk_tgf' },
-    { label: '№', key: 'web_uk_id' }, 
+    { label: '№', key: 'web_uk_id' },
     { label: 'Вид', key: 'vid_iz' },
     { label: '№', key: 'id' },
   ];
 
+  const isSelected = selectedFeature && selectedFeature.properties.id === feature.properties.id;
+
   return (
     <div className="overflow-x-auto mb-6">
-      <h3 className="font-medium mb-2 dark:text-slate-200">
-        Отчет {index + 1}
+      <h3
+        className={`font-medium mb-2 dark:text-slate-200 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-blue-200 dark:bg-blue-800 p-1 rounded' : 'hover:bg-gray-100 dark:hover:bg-slate-700 p-1 rounded'}`}
+        onClick={() => onFeatureSelect(isSelected ? null : feature)}
+        onMouseEnter={() => onFeatureHover(feature)}
+        onMouseLeave={() => onFeatureHover(null)}
+      >
+        Отчет {index + 1} ({geometryType})
       </h3>
       <table className="min-w-full border-collapse mb-4">
         <thead>

@@ -23,6 +23,9 @@ interface RightPanelProps {
   onToggleMarkerInfo: (show: boolean) => void;
   showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
+  selectedFeature: any;
+  onFeatureSelect: (feature: any) => void;
+  onFeatureHover: (feature: any) => void;
 }
 
 function exportToExcel(features: any[]) {
@@ -98,7 +101,7 @@ function exportToExcel(features: any[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showAttributes, onToggleAttributes }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0);
 // isInfoPanelOpen ? 60 : 80
@@ -153,7 +156,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
               <div className="flex-1 overflow-auto px-3 pb-3">
                 {clickedFeatures.length > 0 ? (
                   clickedFeatures.map((feature, index) => (
-                    <FeatureTable key={`clicked-${index}`} feature={feature} index={index} />
+                    <FeatureTable key={`clicked-${index}`} feature={feature} index={index} selectedFeature={selectedFeature} onFeatureSelect={onFeatureSelect} onFeatureHover={onFeatureHover} />
                   ))
                 ) : (
                   <p className="text-muted-foreground">Нажмите на карту чтобы поставить маркер и увидеть информацию</p>
@@ -191,7 +194,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
               <div className="flex-1 overflow-auto px-3 pb-3">
                 {hoveredFeatures.length > 0 ? (
                   hoveredFeatures.map((feature, index) => (
-                    <FeatureTable key={`hovered-${index}`} feature={feature} index={index} />
+                    <FeatureTable key={`hovered-${index}`} feature={feature} index={index} selectedFeature={selectedFeature} onFeatureSelect={onFeatureSelect} onFeatureHover={onFeatureHover} />
                   ))
                 ) : (
                   <p className="text-muted-foreground">Наведите курсор на объекты слоев для просмотра атрибутов</p>

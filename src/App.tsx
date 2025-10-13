@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { AppHeader } from './components/AppHeader';
 import { MapView } from './components/Map';
@@ -45,6 +45,10 @@ export default function App() {
   const [highlightedPoints, setHighlightedPoints] = useState<Set<string>>(new Set());
   const [highlightedLines, setHighlightedLines] = useState<Set<string>>(new Set());
   const [highlightedPolygons, setHighlightedPolygons] = useState<Set<string>>(new Set());
+  const [selectedFeature, setSelectedFeature] = useState<any>(null);
+  const [hoveredFeature, setHoveredFeature] = useState<any>(null);
+  const [selectedAttributeRow, setSelectedAttributeRow] = useState<any>(null);
+  const mapRef = useRef<any>(null);
 
   useEffect(() => {
     fetch(`${TILE_SERVER_URL}/catalog`)
@@ -164,6 +168,174 @@ export default function App() {
     }
   };
 
+  const handleFeatureSelect = (feature: any) => {
+    setSelectedFeature(feature);
+    setSelectedAttributeRow(null); // Clear attribute selection when selecting feature
+    // Zoom to feature
+    if (mapRef.current) {
+      const map = mapRef.current.getMap();
+      // For simplicity, zoom to a fixed level and center on the feature
+      // In a real app, you'd calculate bounds from the feature geometry
+      map.flyTo({
+        center: [feature.geometry.coordinates[0], feature.geometry.coordinates[1]],
+        zoom: 12,
+        duration: 1000
+      });
+    }
+  };
+
+  const handleAttributeRowSelect = (row: any, type: 'points' | 'lines' | 'polygons') => {
+    if (selectedAttributeRow && selectedAttributeRow.data.id === row.id && selectedAttributeRow.type === type) {
+      // Deselect if clicking the same row
+      setSelectedAttributeRow(null);
+      setSelectedFeature(null); // Also clear feature selection
+    } else {
+      setSelectedAttributeRow({ data: row, type });
+      setSelectedFeature(null); // Clear feature selection when selecting attribute row
+
+      // Always zoom to the feature when selecting
+      setTimeout(() => {
+        if (mapRef.current && row) {
+          const map = mapRef.current.getMap();
+          // Query rendered features instead of source features for better coordinate access
+          const layerName = type === 'points' ? 'gdx2.stp' : type === 'lines' ? 'gdx2.stl' : 'gdx2.sta';
+          const features = map.queryRenderedFeatures(undefined, {
+            layers: [layerName],
+            filter: ['==', 'id', row.id]
+          });
+          if (features.length > 0) {
+            const feature = features[0];
+            const coordinates = feature.geometry.coordinates;
+            if (coordinates) {
+              if (type === 'points') {
+                const center = coordinates as [number, number];
+                map.flyTo({
+                  center: center,
+                  zoom: 12,
+                  duration: 1000
+                });
+              } else if (type === 'lines') {
+                // Calculate bbox for the entire line
+                const coords = coordinates as [number, number][];
+                let minLng = coords[0][0];
+                let maxLng = coords[0][0];
+                let minLat = coords[0][1];
+                let maxLat = coords[0][1];
+
+                coords.forEach(coord => {
+                  minLng = Math.min(minLng, coord[0]);
+                  maxLng = Math.max(maxLng, coord[0]);
+                  minLat = Math.min(minLat, coord[1]);
+                  maxLat = Math.max(maxLat, coord[1]);
+                });
+
+                map.fitBounds([
+                  [minLng, minLat],
+                  [maxLng, maxLat]
+                ], {
+                  padding: 50,
+                  duration: 1000
+                });
+              } else {
+                // For polygons, fit bounds to show entire polygon
+                const coords = coordinates as [number, number][][];
+                let minLng = coords[0][0][0];
+                let maxLng = coords[0][0][0];
+                let minLat = coords[0][0][1];
+                let maxLat = coords[0][0][1];
+
+                coords.forEach(ring => {
+                  ring.forEach(coord => {
+                    minLng = Math.min(minLng, coord[0]);
+                    maxLng = Math.max(maxLng, coord[0]);
+                    minLat = Math.min(minLat, coord[1]);
+                    maxLat = Math.max(maxLat, coord[1]);
+                  });
+                });
+
+                map.fitBounds([
+                  [minLng, minLat],
+                  [maxLng, maxLat]
+                ], {
+                  padding: 50,
+                  duration: 1000
+                });
+              }
+            }
+          } else {
+            // If no features found, try again after a longer delay (maybe layer is still loading)
+            setTimeout(() => {
+              const featuresRetry = map.queryRenderedFeatures(undefined, {
+                layers: [layerName],
+                filter: ['==', 'id', row.id]
+              });
+              if (featuresRetry.length > 0) {
+                const feature = featuresRetry[0];
+                const coordinates = feature.geometry.coordinates;
+                if (coordinates) {
+                  if (type === 'points') {
+                    const center = coordinates as [number, number];
+                    map.flyTo({
+                      center: center,
+                      zoom: 12,
+                      duration: 1000
+                    });
+                  } else if (type === 'lines') {
+                    // Calculate bbox for the entire line
+                    const coords = coordinates as [number, number][];
+                    let minLng = coords[0][0];
+                    let maxLng = coords[0][0];
+                    let minLat = coords[0][1];
+                    let maxLat = coords[0][1];
+
+                    coords.forEach(coord => {
+                      minLng = Math.min(minLng, coord[0]);
+                      maxLng = Math.max(maxLng, coord[0]);
+                      minLat = Math.min(minLat, coord[1]);
+                      maxLat = Math.max(maxLat, coord[1]);
+                    });
+
+                    map.fitBounds([
+                      [minLng, minLat],
+                      [maxLng, maxLat]
+                    ], {
+                      padding: 50,
+                      duration: 1000
+                    });
+                  } else {
+                    // For polygons, fit bounds to show entire polygon
+                    const coords = coordinates as [number, number][][];
+                    let minLng = coords[0][0][0];
+                    let maxLng = coords[0][0][0];
+                    let minLat = coords[0][0][1];
+                    let maxLat = coords[0][0][1];
+
+                    coords.forEach(ring => {
+                      ring.forEach(coord => {
+                        minLng = Math.min(minLng, coord[0]);
+                        maxLng = Math.max(maxLng, coord[0]);
+                        minLat = Math.min(minLat, coord[1]);
+                        maxLat = Math.max(maxLat, coord[1]);
+                      });
+                    });
+
+                    map.fitBounds([
+                      [minLng, minLat],
+                      [maxLng, maxLat]
+                    ], {
+                      padding: 50,
+                      duration: 1000
+                    });
+                  }
+                }
+              }
+            }, 500);
+          }
+        }
+      }, 100); // Small delay to ensure state updates are processed
+    }
+  };
+
   return (
     <div className={`min-h-screen bg-background text-foreground relative ${theme}`}>
       <AppHeader theme={theme} onThemeChange={setTheme} />
@@ -236,8 +408,12 @@ export default function App() {
                   }
                   setShowAttributes(show);
                 }}
+                selectedFeature={selectedFeature}
+                onFeatureSelect={handleFeatureSelect}
+                onFeatureHover={setHoveredFeature}
               >
                 <MapView
+                  ref={mapRef}
                   styleUrl={style as any}
                   visibleLayers={visibleLayers}
                   layers={layers}
@@ -251,6 +427,9 @@ export default function App() {
                   highlightedLines={highlightedLines}
                   highlightedPolygons={highlightedPolygons}
                   onZoomChange={setCurrentZoom}
+                  selectedFeature={selectedFeature}
+                  hoveredFeature={hoveredFeature}
+                  selectedAttributeRow={selectedAttributeRow}
                 />
               </RightPanel>
             </Panel>
@@ -268,6 +447,37 @@ export default function App() {
                 onToggleHighlightPoints={toggleHighlightPoints}
                 onToggleHighlightLines={toggleHighlightLines}
                 onToggleHighlightPolygons={toggleHighlightPolygons}
+                selectedAttributeRow={selectedAttributeRow}
+                onAttributeRowSelect={handleAttributeRowSelect}
+                onZoomToFeature={(row, type) => {
+                  if (mapRef.current && row) {
+                    const map = mapRef.current.getMap();
+                    const layerName = type === 'points' ? 'gdx2.stp' : type === 'lines' ? 'gdx2.stl' : 'gdx2.sta';
+                    const features = map.queryRenderedFeatures(undefined, {
+                      layers: [layerName],
+                      filter: ['==', 'id', row.id]
+                    });
+                    if (features.length > 0) {
+                      const feature = features[0];
+                      const coordinates = feature.geometry.coordinates;
+                      if (coordinates) {
+                        let center: [number, number];
+                        if (type === 'points') {
+                          center = coordinates as [number, number];
+                        } else if (type === 'lines') {
+                          center = (coordinates as [number, number][])[0];
+                        } else {
+                          center = (coordinates as [number, number][][])[0][0];
+                        }
+                        map.flyTo({
+                          center: center,
+                          zoom: 12,
+                          duration: 1000
+                        });
+                      }
+                    }
+                  }
+                }}
               />
             </Panel>
             {/* <PanelResizeHandle className="h-2 bg-border" /> */}
