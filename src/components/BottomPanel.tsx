@@ -5,12 +5,14 @@ export function BottomPanel({
   mouseCoords,
   coordSystem,
   onCoordSystemChange,
-  zoom
+  zoom,
+  isLoading
 }: {
   mouseCoords: {lng: number, lat: number} | null;
   coordSystem: 'EPSG:4326' | 'EPSG:3857';
   onCoordSystemChange: (system: 'EPSG:4326' | 'EPSG:3857') => void;
   zoom: number;
+  isLoading: boolean;
 }) {
   const displayedCoords = useMemo(() => {
     if (!mouseCoords) return null;
@@ -33,7 +35,10 @@ export function BottomPanel({
 
   return (
     <div className="bg-gray-200 border-t border-border flex items-center justify-between h-full px-4">
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center gap-2">
+        {isLoading && (
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+        )}
         <p className="text-sm text-muted-foreground">Bottom Panel</p>
       </div>
       <div className="flex items-center gap-2">

@@ -35,6 +35,8 @@ export default function App() {
   const [showFeatureTable, setShowFeatureTable] = useState(false);
   const [activeInfoMode, setActiveInfoMode] = useState<'points' | 'lines' | 'polygons' | null>(null);
   const [showMarkerInfo, setShowMarkerInfo] = useState(false);
+  const [showMarkerAttributes, setShowMarkerAttributes] = useState(false);
+  const [activeTool, setActiveTool] = useState<'info' | 'attributes' | 'rectangle' | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [attributesPointsData, setAttributesPointsData] = useState<any[]>([]);
   const [attributesLinesData, setAttributesLinesData] = useState<any[]>([]);
@@ -48,6 +50,9 @@ export default function App() {
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [selectedAttributeRow, setSelectedAttributeRow] = useState<any>(null);
+  const [isMapRedrawing, setIsMapRedrawing] = useState(false);
+  const [filteredFeature, setFilteredFeature] = useState<{ row: any; type: 'points' | 'lines' | 'polygons' } | null>(null);
+  const [showRectangleSelection, setShowRectangleSelection] = useState(false);
   const mapRef = useRef<any>(null);
 
   useEffect(() => {
@@ -184,6 +189,123 @@ export default function App() {
     }
   };
 
+  const handleMarkerAttributesClick = () => {
+    if (activeTool === 'attributes') {
+      // If already active, deactivate
+      setActiveTool(null);
+      setShowMarkerAttributes(false);
+    } else {
+      // Activate marker attributes mode
+      setActiveTool('attributes');
+      setShowMarkerAttributes(true);
+      setShowMarkerInfo(false);
+      setShowRectangleSelection(false);
+      setActiveInfoMode(null);
+      // Clear any existing clicked features to allow fresh selection
+      setClickedFeatures([]);
+      setMarker(null);
+      // Transfer clicked features to attributes data (will be empty initially)
+      updateAttributesData([]);
+      setShowAttributes(true);
+    }
+  };
+
+  // Handle map click when marker attributes mode is active
+  const handleMapClickWithMarkerAttributes = (features: any[], lngLat: {lng: number, lat: number}) => {
+    if (showMarkerAttributes) {
+      // Update clicked features and transfer to attributes
+      setClickedFeatures(features);
+      updateAttributesData(features);
+      setMarker(lngLat);
+    } else {
+      // Default behavior
+      setClickedFeatures(features);
+      if (showMarkerInfo) {
+        setMarker(lngLat);
+      }
+    }
+  };
+
+  const handleFilterToFeature = (row: any, type: 'points' | 'lines' | 'polygons') => {
+    setFilteredFeature({ row, type });
+    // Ensure layer is visible
+    const layerName = type === 'points' ? 'stp' : type === 'lines' ? 'stl' : 'sta';
+    setVisibleLayers(prev => new Set([layerName])); // Only show this layer
+
+    // Zoom to the feature
+    setTimeout(() => {
+      if (mapRef.current && row) {
+        const map = mapRef.current.getMap();
+        const layerName = type === 'points' ? 'gdx2.stp' : type === 'lines' ? 'gdx2.stl' : 'gdx2.sta';
+        const features = map.queryRenderedFeatures(undefined, {
+          layers: [layerName],
+          filter: ['==', 'id', row.id]
+        });
+        if (features.length > 0) {
+          const feature = features[0];
+          const coordinates = feature.geometry.coordinates;
+
+          if (coordinates) {
+            // Calculate bbox for all geometry types
+            let minLng: number, maxLng: number, minLat: number, maxLat: number;
+
+            if (type === 'points') {
+              const center = coordinates as [number, number];
+              minLng = maxLng = center[0];
+              minLat = maxLat = center[1];
+            } else if (type === 'lines') {
+              // Calculate bbox for the entire line
+              const coords = coordinates as [number, number][];
+              minLng = coords[0][0];
+              maxLng = coords[0][0];
+              minLat = coords[0][1];
+              maxLat = coords[0][1];
+
+              coords.forEach(coord => {
+                minLng = Math.min(minLng, coord[0]);
+                maxLng = Math.max(maxLng, coord[0]);
+                minLat = Math.min(minLat, coord[1]);
+                maxLat = Math.max(maxLat, coord[1]);
+              });
+            } else {
+              // For polygons, fit bounds to show entire polygon
+              const coords = coordinates as [number, number][][];
+              minLng = coords[0][0][0];
+              maxLng = coords[0][0][0];
+              minLat = coords[0][0][1];
+              maxLat = coords[0][0][1];
+
+              coords.forEach(ring => {
+                ring.forEach(coord => {
+                  minLng = Math.min(minLng, coord[0]);
+                  maxLng = Math.max(maxLng, coord[0]);
+                  minLat = Math.min(minLat, coord[1]);
+                  maxLat = Math.max(maxLat, coord[1]);
+                });
+              });
+            }
+
+            // Zoom to the calculated bbox
+            map.fitBounds([
+              [minLng, minLat],
+              [maxLng, maxLat]
+            ], {
+              padding: 50,
+              duration: 1000
+            });
+          }
+        }
+      }
+    }, 100);
+  };
+
+  const handleClearFilter = (type: 'points' | 'lines' | 'polygons') => {
+    setFilteredFeature(null);
+    // Restore all layers
+    const allLayers = ['field', 'lu', 'sta', 'stl', 'stp'];
+    setVisibleLayers(new Set(allLayers));
+  };
+
   const handleAttributeRowSelect = (row: any, type: 'points' | 'lines' | 'polygons') => {
     if (selectedAttributeRow && selectedAttributeRow.data.id === row.id && selectedAttributeRow.type === type) {
       // Deselect if clicking the same row
@@ -192,6 +314,11 @@ export default function App() {
     } else {
       setSelectedAttributeRow({ data: row, type });
       setSelectedFeature(null); // Clear feature selection when selecting attribute row
+      setFilteredFeature(null); // Clear any filtered feature when selecting a new row
+
+      // Ensure layer is visible for highlighting
+      const layerName = type === 'points' ? 'stp' : type === 'lines' ? 'stl' : 'sta';
+      setVisibleLayers(prev => new Set([...prev, layerName]));
 
       // Always zoom to the feature when selecting
       setTimeout(() => {
@@ -207,13 +334,9 @@ export default function App() {
             const feature = features[0];
             const coordinates = feature.geometry.coordinates;
             if (coordinates) {
+              let center: [number, number];
               if (type === 'points') {
-                const center = coordinates as [number, number];
-                map.flyTo({
-                  center: center,
-                  zoom: 12,
-                  duration: 1000
-                });
+                center = coordinates as [number, number];
               } else if (type === 'lines') {
                 // Calculate bbox for the entire line
                 const coords = coordinates as [number, number][];
@@ -229,13 +352,7 @@ export default function App() {
                   maxLat = Math.max(maxLat, coord[1]);
                 });
 
-                map.fitBounds([
-                  [minLng, minLat],
-                  [maxLng, maxLat]
-                ], {
-                  padding: 50,
-                  duration: 1000
-                });
+                center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
               } else {
                 // For polygons, fit bounds to show entire polygon
                 const coords = coordinates as [number, number][][];
@@ -253,14 +370,72 @@ export default function App() {
                   });
                 });
 
-                map.fitBounds([
-                  [minLng, minLat],
-                  [maxLng, maxLat]
-                ], {
-                  padding: 50,
-                  duration: 1000
-                });
+                center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
               }
+
+              // First, zoom out by 3 levels to the center
+              map.flyTo({
+                center: center,
+                zoom: currentZoom - 3,
+                duration: 1000
+              });
+
+              // Then, after the zoom out, zoom to the feature
+              setTimeout(() => {
+                if (type === 'points') {
+                  map.flyTo({
+                    center: center,
+                    zoom: 12,
+                    duration: 1000
+                  });
+                } else if (type === 'lines') {
+                  // Calculate bbox for the entire line
+                  const coords = coordinates as [number, number][];
+                  let minLng = coords[0][0];
+                  let maxLng = coords[0][0];
+                  let minLat = coords[0][1];
+                  let maxLat = coords[0][1];
+
+                  coords.forEach(coord => {
+                    minLng = Math.min(minLng, coord[0]);
+                    maxLng = Math.max(maxLng, coord[0]);
+                    minLat = Math.min(minLat, coord[1]);
+                    maxLat = Math.max(maxLat, coord[1]);
+                  });
+
+                  map.fitBounds([
+                    [minLng, minLat],
+                    [maxLng, maxLat]
+                  ], {
+                    padding: 50,
+                    duration: 1000
+                  });
+                } else {
+                  // For polygons, fit bounds to show entire polygon
+                  const coords = coordinates as [number, number][][];
+                  let minLng = coords[0][0][0];
+                  let maxLng = coords[0][0][0];
+                  let minLat = coords[0][0][1];
+                  let maxLat = coords[0][0][1];
+
+                  coords.forEach(ring => {
+                    ring.forEach(coord => {
+                      minLng = Math.min(minLng, coord[0]);
+                      maxLng = Math.max(maxLng, coord[0]);
+                      minLat = Math.min(minLat, coord[1]);
+                      maxLat = Math.max(maxLat, coord[1]);
+                    });
+                  });
+
+                  map.fitBounds([
+                    [minLng, minLat],
+                    [maxLng, maxLat]
+                  ], {
+                    padding: 50,
+                    duration: 1000
+                  });
+                }
+              }, 1100);
             }
           } else {
             // If no features found, try again after a longer delay (maybe layer is still loading)
@@ -273,13 +448,9 @@ export default function App() {
                 const feature = featuresRetry[0];
                 const coordinates = feature.geometry.coordinates;
                 if (coordinates) {
+                  let center: [number, number];
                   if (type === 'points') {
-                    const center = coordinates as [number, number];
-                    map.flyTo({
-                      center: center,
-                      zoom: 12,
-                      duration: 1000
-                    });
+                    center = coordinates as [number, number];
                   } else if (type === 'lines') {
                     // Calculate bbox for the entire line
                     const coords = coordinates as [number, number][];
@@ -295,13 +466,7 @@ export default function App() {
                       maxLat = Math.max(maxLat, coord[1]);
                     });
 
-                    map.fitBounds([
-                      [minLng, minLat],
-                      [maxLng, maxLat]
-                    ], {
-                      padding: 50,
-                      duration: 1000
-                    });
+                    center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
                   } else {
                     // For polygons, fit bounds to show entire polygon
                     const coords = coordinates as [number, number][][];
@@ -319,14 +484,72 @@ export default function App() {
                       });
                     });
 
-                    map.fitBounds([
-                      [minLng, minLat],
-                      [maxLng, maxLat]
-                    ], {
-                      padding: 50,
-                      duration: 1000
-                    });
+                    center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
                   }
+
+                  // First, zoom out by 3 levels to the center
+                  map.flyTo({
+                    center: center,
+                    zoom: currentZoom - 3,
+                    duration: 1000
+                  });
+
+                  // Then, after the zoom out, zoom to the feature
+                  setTimeout(() => {
+                    if (type === 'points') {
+                      map.flyTo({
+                        center: center,
+                        zoom: 12,
+                        duration: 1000
+                      });
+                    } else if (type === 'lines') {
+                      // Calculate bbox for the entire line
+                      const coords = coordinates as [number, number][];
+                      let minLng = coords[0][0];
+                      let maxLng = coords[0][0];
+                      let minLat = coords[0][1];
+                      let maxLat = coords[0][1];
+
+                      coords.forEach(coord => {
+                        minLng = Math.min(minLng, coord[0]);
+                        maxLng = Math.max(maxLng, coord[0]);
+                        minLat = Math.min(minLat, coord[1]);
+                        maxLat = Math.max(maxLat, coord[1]);
+                      });
+
+                      map.fitBounds([
+                        [minLng, minLat],
+                        [maxLng, maxLat]
+                      ], {
+                        padding: 50,
+                        duration: 1000
+                      });
+                    } else {
+                      // For polygons, fit bounds to show entire polygon
+                      const coords = coordinates as [number, number][][];
+                      let minLng = coords[0][0][0];
+                      let maxLng = coords[0][0][0];
+                      let minLat = coords[0][0][1];
+                      let maxLat = coords[0][0][1];
+
+                      coords.forEach(ring => {
+                        ring.forEach(coord => {
+                          minLng = Math.min(minLng, coord[0]);
+                          maxLng = Math.max(maxLng, coord[0]);
+                          minLat = Math.min(minLat, coord[1]);
+                          maxLat = Math.max(maxLat, coord[1]);
+                        });
+                      });
+
+                      map.fitBounds([
+                        [minLng, minLat],
+                        [maxLng, maxLat]
+                      ], {
+                        padding: 50,
+                        duration: 1000
+                      });
+                    }
+                  }, 1100);
                 }
               }
             }, 500);
@@ -397,9 +620,30 @@ export default function App() {
                 }}
                 showMarkerInfo={showMarkerInfo}
                 onToggleMarkerInfo={(show) => {
-                  setShowMarkerInfo(show);
-                  if (show) setActiveInfoMode(null);
+                  if (activeTool === 'info') {
+                    setActiveTool(null);
+                    setShowMarkerInfo(false);
+                  } else {
+                    setActiveTool('info');
+                    setShowMarkerInfo(true);
+                    setShowMarkerAttributes(false);
+                    setShowRectangleSelection(false);
+                    setActiveInfoMode(null);
+                    // Clear attributes data and hide attributes panel
+                    setAttributesPointsData([]);
+                    setAttributesLinesData([]);
+                    setAttributesPolygonsData([]);
+                    setShowAttributes(false);
+                    setSelectedAttributeRow(null);
+                    setFilteredFeature(null);
+                    // Clear selected objects on map
+                    setSelectedFeature(null);
+                    setHoveredFeature(null);
+                    setClickedFeatures([]);
+                    setMarker(null);
+                  }
                 }}
+                showMarkerAttributes={showMarkerAttributes}
                 showAttributes={showAttributes}
                 onToggleAttributes={(show) => {
                   if (show) {
@@ -411,6 +655,20 @@ export default function App() {
                 selectedFeature={selectedFeature}
                 onFeatureSelect={handleFeatureSelect}
                 onFeatureHover={setHoveredFeature}
+                onMarkerAttributesClick={handleMarkerAttributesClick}
+                showRectangleSelection={showRectangleSelection}
+                onToggleRectangleSelection={() => {
+                  if (activeTool === 'rectangle') {
+                    setActiveTool(null);
+                    setShowRectangleSelection(false);
+                  } else {
+                    setActiveTool('rectangle');
+                    setShowRectangleSelection(true);
+                    setShowMarkerInfo(false);
+                    setShowMarkerAttributes(false);
+                    setActiveInfoMode(null);
+                  }
+                }}
               >
                 <MapView
                   ref={mapRef}
@@ -420,7 +678,7 @@ export default function App() {
                   onFeaturesHover={setHoveredFeatures}
                   enableHover={activeInfoMode !== null}
                   infoMode={activeInfoMode}
-                  onClick={(features, lngLat) => { setClickedFeatures(features); if (showMarkerInfo) setMarker(lngLat); }}
+                  onClick={handleMapClickWithMarkerAttributes}
                   marker={marker}
                   onMouseMoveCoords={setMouseCoords}
                   highlightedPoints={highlightedPoints}
@@ -430,6 +688,29 @@ export default function App() {
                   selectedFeature={selectedFeature}
                   hoveredFeature={hoveredFeature}
                   selectedAttributeRow={selectedAttributeRow}
+                  onRedrawStart={() => setIsMapRedrawing(true)}
+                  onRedrawEnd={() => setIsMapRedrawing(false)}
+                  filteredFeature={filteredFeature}
+                  rectangleSelection={showRectangleSelection}
+                  onRectangleSelect={(bounds) => {
+                    // Query features within the rectangle bounds
+                    if (mapRef.current) {
+                      const map = mapRef.current.getMap();
+                      const visibleTargetLayers = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta'].filter(layerName =>
+                        map.getLayer(layerName) && map.getLayoutProperty(layerName, 'visibility') !== 'none'
+                      );
+
+                      const features = map.queryRenderedFeatures(undefined, {
+                        layers: visibleTargetLayers,
+                        filter: ['within', ['bbox', bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1]]]
+                      });
+
+                      // Update attributes data with found features
+                      updateAttributesData(features);
+                      setShowAttributes(true);
+                      setShowRectangleSelection(false);
+                    }
+                  }}
                 />
               </RightPanel>
             </Panel>
@@ -461,28 +742,72 @@ export default function App() {
                       const feature = features[0];
                       const coordinates = feature.geometry.coordinates;
                       if (coordinates) {
-                        let center: [number, number];
                         if (type === 'points') {
-                          center = coordinates as [number, number];
+                          const center = coordinates as [number, number];
+                          map.flyTo({
+                            center: center,
+                            zoom: 12,
+                            duration: 1000
+                          });
                         } else if (type === 'lines') {
-                          center = (coordinates as [number, number][])[0];
+                          // Calculate bbox for the entire line
+                          const coords = coordinates as [number, number][];
+                          let minLng = coords[0][0];
+                          let maxLng = coords[0][0];
+                          let minLat = coords[0][1];
+                          let maxLat = coords[0][1];
+
+                          coords.forEach(coord => {
+                            minLng = Math.min(minLng, coord[0]);
+                            maxLng = Math.max(maxLng, coord[0]);
+                            minLat = Math.min(minLat, coord[1]);
+                            maxLat = Math.max(maxLat, coord[1]);
+                          });
+
+                          map.fitBounds([
+                            [minLng, minLat],
+                            [maxLng, maxLat]
+                          ], {
+                            padding: 50,
+                            duration: 1000
+                          });
                         } else {
-                          center = (coordinates as [number, number][][])[0][0];
+                          // For polygons, fit bounds to show entire polygon
+                          const coords = coordinates as [number, number][][];
+                          let minLng = coords[0][0][0];
+                          let maxLng = coords[0][0][0];
+                          let minLat = coords[0][0][1];
+                          let maxLat = coords[0][0][1];
+
+                          coords.forEach(ring => {
+                            ring.forEach(coord => {
+                              minLng = Math.min(minLng, coord[0]);
+                              maxLng = Math.max(maxLng, coord[0]);
+                              minLat = Math.min(minLat, coord[1]);
+                              maxLat = Math.max(maxLat, coord[1]);
+                            });
+                          });
+
+                          map.fitBounds([
+                            [minLng, minLat],
+                            [maxLng, maxLat]
+                          ], {
+                            padding: 50,
+                            duration: 1000
+                          });
                         }
-                        map.flyTo({
-                          center: center,
-                          zoom: 12,
-                          duration: 1000
-                        });
                       }
                     }
                   }
                 }}
+                onFilterToFeature={handleFilterToFeature}
+                onClearFilter={handleClearFilter}
+                filteredFeature={filteredFeature}
               />
             </Panel>
             {/* <PanelResizeHandle className="h-2 bg-border" /> */}
             <Panel defaultSize={2} minSize={2} maxSize={2}>
-              <BottomPanel mouseCoords={mouseCoords} coordSystem={coordSystem} onCoordSystemChange={setCoordSystem} zoom={currentZoom} />
+              <BottomPanel mouseCoords={mouseCoords} coordSystem={coordSystem} onCoordSystemChange={setCoordSystem} zoom={currentZoom} isLoading={isMapRedrawing} />
             </Panel>
           </PanelGroup>
         </div>

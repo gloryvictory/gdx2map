@@ -34,6 +34,11 @@ export const MapView = forwardRef<any, {
   selectedFeature: any;
   hoveredFeature: any;
   selectedAttributeRow: any;
+  onRedrawStart?: () => void;
+  onRedrawEnd?: () => void;
+  filteredFeature?: { row: any; type: 'points' | 'lines' | 'polygons' } | null;
+  rectangleSelection?: boolean;
+  onRectangleSelect?: (bounds: [[number, number], [number, number]]) => void;
 }>(({
   styleUrl,
   visibleLayers,
@@ -50,11 +55,17 @@ export const MapView = forwardRef<any, {
   onZoomChange,
   selectedFeature,
   hoveredFeature,
-  selectedAttributeRow
+  selectedAttributeRow,
+  onRedrawStart,
+  onRedrawEnd,
+  filteredFeature,
+  rectangleSelection,
+  onRectangleSelect
 }, ref) => {
   const targetLayerNames = ['stp', 'stl', 'sta'];
   const mapRef = useRef<MapRef | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [rectangleStart, setRectangleStart] = useState<{lng: number, lat: number} | null>(null);
 
   useImperativeHandle(ref, () => ({
     getMap: () => mapRef.current?.getMap()
@@ -113,6 +124,25 @@ export const MapView = forwardRef<any, {
     const map = mapRef.current?.getMap();
     if (!map) return;
 
+    // Handle rectangle selection
+    if (rectangleSelection) {
+      if (!rectangleStart) {
+        // Start rectangle selection
+        setRectangleStart({ lng: evt.lngLat.lng, lat: evt.lngLat.lat });
+        console.log('Rectangle selection started at:', evt.lngLat);
+      } else {
+        // Complete rectangle selection
+        const bounds: [[number, number], [number, number]] = [
+          [Math.min(rectangleStart.lng, evt.lngLat.lng), Math.min(rectangleStart.lat, evt.lngLat.lat)],
+          [Math.max(rectangleStart.lng, evt.lngLat.lng), Math.max(rectangleStart.lat, evt.lngLat.lat)]
+        ];
+        console.log('Rectangle selection completed with bounds:', bounds);
+        onRectangleSelect?.(bounds);
+        setRectangleStart(null);
+      }
+      return;
+    }
+
     const visibleTargetLayers = targetLayerNames
       .filter(name => visibleLayers.has(name))
       .map(name => `gdx2.${name}`);
@@ -121,13 +151,14 @@ export const MapView = forwardRef<any, {
       layers: visibleTargetLayers,
     });
     onClick(features, { lng: evt.lngLat.lng, lat: evt.lngLat.lat });
-  }, [mapLoaded, visibleLayers, onClick]);
+  }, [mapLoaded, visibleLayers, onClick, rectangleSelection, rectangleStart, onRectangleSelect]);
 
   const updateLayers = useCallback(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
 
+    onRedrawStart?.();
     console.log('Adding layers', visibleLayers);
 
     const allLayers = layers;
@@ -237,7 +268,12 @@ export const MapView = forwardRef<any, {
         }
       }
     });
-  }, [mapLoaded, visibleLayers, layers, highlightedPoints, highlightedLines, highlightedPolygons]);
+
+    // End redraw after a short delay to allow rendering
+    setTimeout(() => {
+      onRedrawEnd?.();
+    }, 100);
+  }, [mapLoaded, visibleLayers, layers, highlightedPoints, highlightedLines, highlightedPolygons, onRedrawStart, onRedrawEnd]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -352,7 +388,7 @@ export const MapView = forwardRef<any, {
           if (selectedAttributeLayer.type === 'circle') {
             selectedAttributeLayer.paint = {
               ...selectedAttributeLayer.paint,
-              'circle-color': 'purple',
+              'circle-color': 'red',
               'circle-radius': 8,
               'circle-stroke-color': 'black',
               'circle-stroke-width': 2,
@@ -360,13 +396,13 @@ export const MapView = forwardRef<any, {
           } else if (selectedAttributeLayer.type === 'line') {
             selectedAttributeLayer.paint = {
               ...selectedAttributeLayer.paint,
-              'line-color': 'purple',
+              'line-color': 'red',
               'line-width': 5,
             };
           } else if (selectedAttributeLayer.type === 'fill') {
             selectedAttributeLayer.paint = {
               ...selectedAttributeLayer.paint,
-              'fill-color': 'purple',
+              'fill-color': 'red',
               'fill-opacity': 0.9,
             };
           }
@@ -397,6 +433,55 @@ export const MapView = forwardRef<any, {
   useEffect(() => {
     updateLayers();
   }, [updateLayers, styleUrl]);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    // Handle filtered feature
+    if (filteredFeature) {
+      const layerType = filteredFeature.type === 'points' ? 'stp' : filteredFeature.type === 'lines' ? 'stl' : 'sta';
+      const layerName = `gdx2.${layerType}`;
+
+      // Hide all other layers
+      const allLayerNames = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta', 'gdx2.lu', 'gdx2.field'];
+      allLayerNames.forEach(name => {
+        if (map.getLayer(name)) {
+          map.setLayoutProperty(name, 'visibility', name === layerName ? 'visible' : 'none');
+        }
+      });
+
+      // Apply filter to show only the selected feature using != filter
+      if (map.getLayer(layerName)) {
+        map.setFilter(layerName, ['!=', 'id', filteredFeature.row.id]);
+        map.triggerRepaint();
+      }
+    } else {
+      // Clear filter and show all layers
+      const allLayerNames = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta', 'gdx2.lu', 'gdx2.field'];
+      allLayerNames.forEach(layerName => {
+        if (map.getLayer(layerName)) {
+          map.setLayoutProperty(layerName, 'visibility', 'visible');
+          map.setFilter(layerName, null);
+        }
+      });
+      map.triggerRepaint();
+    }
+  }, [filteredFeature, mapLoaded]);
+
+  // Handle rectangle selection mode cursor
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    if (rectangleSelection) {
+      map.getCanvas().style.cursor = rectangleStart ? 'crosshair' : 'crosshair';
+    } else {
+      map.getCanvas().style.cursor = '';
+    }
+  }, [rectangleSelection, rectangleStart, mapLoaded]);
 
   return (
     <div

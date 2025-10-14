@@ -68,6 +68,12 @@ export const lu_labels_Layer: SymbolLayerSpecification = {
     'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
     'text-radial-offset': 0.5,
     'text-justify': 'auto',
+    'text-size': 12,
+  },
+  paint: {
+    'text-color': '#000000',
+    'text-halo-color': '#ffffff',
+    'text-halo-width': 1,
   },
 };
 

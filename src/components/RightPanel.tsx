@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { MapPin, Route, Square, Flag, FileSpreadsheet, Database } from 'lucide-react';
+import { MapPin, Route, Square, Flag, FileSpreadsheet, Database, Target, MousePointer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import {
@@ -21,11 +21,15 @@ interface RightPanelProps {
   onSetActiveInfoMode: (mode: 'points' | 'lines' | 'polygons' | null) => void;
   showMarkerInfo: boolean;
   onToggleMarkerInfo: (show: boolean) => void;
+  showMarkerAttributes: boolean;
   showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
   selectedFeature: any;
   onFeatureSelect: (feature: any) => void;
   onFeatureHover: (feature: any) => void;
+  onMarkerAttributesClick: () => void;
+  showRectangleSelection: boolean;
+  onToggleRectangleSelection: () => void;
 }
 
 function exportToExcel(features: any[]) {
@@ -101,7 +105,7 @@ function exportToExcel(features: any[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onToggleRectangleSelection }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0);
 // isInfoPanelOpen ? 60 : 80
@@ -133,21 +137,6 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         <p>Выгрузка в Excel</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onToggleAttributes(!showAttributes)}
-                          className="h-8"
-                        >
-                          <Database className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p>Атрибуты</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -213,7 +202,17 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                 <Button
                   variant={activeInfoMode === 'points' ? "default" : "outline"}
                   size="icon"
-                  onClick={() => onSetActiveInfoMode(activeInfoMode === 'points' ? null : 'points')}
+                  onClick={() => {
+                    if (activeInfoMode === 'points') {
+                      onSetActiveInfoMode(null);
+                    } else {
+                      onSetActiveInfoMode('points');
+                      // Deactivate other modes
+                      onToggleMarkerInfo(false);
+                      onToggleRectangleSelection();
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
                   className="w-10 h-10"
                 >
                   <MapPin className="w-4 h-4" />
@@ -228,7 +227,17 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                 <Button
                   variant={activeInfoMode === 'lines' ? "default" : "outline"}
                   size="icon"
-                  onClick={() => onSetActiveInfoMode(activeInfoMode === 'lines' ? null : 'lines')}
+                  onClick={() => {
+                    if (activeInfoMode === 'lines') {
+                      onSetActiveInfoMode(null);
+                    } else {
+                      onSetActiveInfoMode('lines');
+                      // Deactivate other modes
+                      onToggleMarkerInfo(false);
+                      onToggleRectangleSelection();
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
                   className="w-10 h-10"
                 >
                   <Route className="w-4 h-4" />
@@ -243,7 +252,17 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                 <Button
                   variant={activeInfoMode === 'polygons' ? "default" : "outline"}
                   size="icon"
-                  onClick={() => onSetActiveInfoMode(activeInfoMode === 'polygons' ? null : 'polygons')}
+                  onClick={() => {
+                    if (activeInfoMode === 'polygons') {
+                      onSetActiveInfoMode(null);
+                    } else {
+                      onSetActiveInfoMode('polygons');
+                      // Deactivate other modes
+                      onToggleMarkerInfo(false);
+                      onToggleRectangleSelection();
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
                   className="w-10 h-10"
                 >
                   <Square className="w-4 h-4" />
@@ -258,7 +277,16 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                 <Button
                   variant={showMarkerInfo ? "default" : "outline"}
                   size="icon"
-                  onClick={() => onToggleMarkerInfo(!showMarkerInfo)}
+                  onClick={() => {
+                    if (showMarkerInfo) {
+                      onToggleMarkerInfo(false);
+                    } else {
+                      onToggleMarkerInfo(true);
+                      onSetActiveInfoMode(null);
+                      onToggleRectangleSelection();
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
                   className="w-10 h-10"
                 >
                   <Flag className="w-4 h-4" />
@@ -266,6 +294,48 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
               </TooltipTrigger>
               <TooltipContent side="left">
                 <p>Информация под маркером</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showMarkerAttributes ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    onMarkerAttributesClick();
+                    // Deactivate other modes when activating marker attributes
+                    onSetActiveInfoMode(null);
+                    onToggleMarkerInfo(false);
+                    onToggleRectangleSelection();
+                  }}
+                  className="w-10 h-10"
+                >
+                  <Target className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Атрибуты под маркером</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showRectangleSelection ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    onToggleRectangleSelection();
+                    // Deactivate other modes when activating rectangle selection
+                    onSetActiveInfoMode(null);
+                    onToggleMarkerInfo(false);
+                    // Note: showMarkerAttributes is handled in App.tsx
+                  }}
+                  className="w-10 h-10"
+                >
+                  <MousePointer className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Выбрать прямоугольником</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

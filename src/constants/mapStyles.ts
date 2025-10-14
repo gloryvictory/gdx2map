@@ -1,5 +1,20 @@
-export const LIGHT_MAP_STYLE =
-  'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+export const LIGHT_MAP_STYLE = {
+  version: 8,
+  sources: {
+    'carto-light': {
+      type: 'raster',
+      tiles: ['https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '© CARTO'
+    }
+  },
+  layers: [{
+    id: 'carto-light',
+    type: 'raster',
+    source: 'carto-light'
+  }],
+  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
+};
 export const DARK_MAP_STYLE =
   'https://tiles.basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 export const VOYAGER_MAP_STYLE =

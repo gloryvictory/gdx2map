@@ -4,7 +4,8 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
-import { Eye, MapPin } from 'lucide-react';
+import { Eye, MapPin, Filter, FilterX, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import {
   Tooltip,
@@ -37,6 +38,9 @@ interface AttributesPanelProps {
   selectedAttributeRow: any;
   onAttributeRowSelect: (row: any, type: 'points' | 'lines' | 'polygons') => void;
   onZoomToFeature: (row: any, type: 'points' | 'lines' | 'polygons') => void;
+  onFilterToFeature: (row: any, type: 'points' | 'lines' | 'polygons') => void;
+  onClearFilter: (type: 'points' | 'lines' | 'polygons') => void;
+  filteredFeature: { row: any; type: 'points' | 'lines' | 'polygons' } | null;
 }
 
 export function AttributesPanel({
@@ -53,7 +57,10 @@ export function AttributesPanel({
   onToggleHighlightPolygons,
   selectedAttributeRow,
   onAttributeRowSelect,
-  onZoomToFeature
+  onZoomToFeature,
+  onFilterToFeature,
+  onClearFilter,
+  filteredFeature
 }: AttributesPanelProps) {
 
   const fieldDescriptions: Record<string, string> = {
@@ -82,6 +89,42 @@ export function AttributesPanel({
 
   const columns = getColumns();
 
+  const exportToExcel = (data: any[], filename: string) => {
+    // Create a mapping from English keys to Russian labels
+    const tableRows = [
+      { label: 'Автор', key: 'avts' },
+      { label: 'Отчет', key: 'name_otch' },
+      { label: 'Организация', key: 'org_isp' },
+      { label: 'Год начала', key: 'god_nach' },
+      { label: 'Год окончания', key: 'god_end' },
+      { label: 'Метод', key: 'method' },
+      { label: 'Лист', key: 'nom_1000' },
+      { label: 'Масштаб', key: 'scale' },
+      { label: 'ТГФ', key: 'tgf' },
+      { label: 'инв. № РГФ', key: 'in_n_rosg' },
+      { label: 'инв. № ТГФ', key: 'in_n_tgf' },
+      { label: '№ РГФ', key: 'n_uk_rosg' },
+      { label: '№ ТГФ', key: 'n_uk_tgf' },
+      { label: '№', key: 'web_uk_id' },
+      { label: 'Вид', key: 'vid_iz' },
+      { label: '№', key: 'id' },
+    ];
+
+    // Transform data to use Russian column names
+    const transformedData = data.map(row => {
+      const newRow: any = {};
+      tableRows.forEach(({ label, key }) => {
+        newRow[label] = row[key] || '';
+      });
+      return newRow;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(transformedData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+    XLSX.writeFile(workbook, filename);
+  };
+
   return (
     <div className="bg-background border-t border-border p-4">
       <h3 className="text-lg font-semibold mb-3">Атрибуты</h3>
@@ -92,7 +135,7 @@ export function AttributesPanel({
           <TabsTrigger value="polygons">Полигоны ({polygonsData.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="points">
-          <div className="mb-2">
+          <div className="mb-2 flex gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -108,6 +151,24 @@ export function AttributesPanel({
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <p>{highlightedPoints.size > 0 ? 'Убрать подсветку точек' : 'Подсветить все точки на карте'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => exportToExcel(pointsData, 'points.xlsx')}
+                    className="h-8"
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Экспорт в Excel
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Экспортировать данные точек в Excel файл</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -161,12 +222,41 @@ export function AttributesPanel({
                   <MapPin className="w-4 h-4 mr-2" />
                   Показать на карте
                 </ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                  // Get the grid API from the context
+                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
+                  let selectedRow = null;
+                  let type = 'points';
+                  for (const grid of grids) {
+                    const api = (grid as any).__agGridApi;
+                    if (api && api.getSelectedRows) {
+                      const selectedRows = api.getSelectedRows();
+                      if (selectedRows.length > 0) {
+                        selectedRow = selectedRows[0];
+                        type = (grid as any).__contextMenuType || 'points';
+                        break;
+                      }
+                    }
+                  }
+                  if (selectedRow) {
+                    onFilterToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                  }
+                }}>
+                  <Filter className="w-4 h-4 mr-2" />
+                  Показать только этот
+                </ContextMenuItem>
+                {filteredFeature && filteredFeature.type === 'points' && (
+                  <ContextMenuItem onClick={() => onClearFilter('points')}>
+                    <FilterX className="w-4 h-4 mr-2" />
+                    Показать все
+                  </ContextMenuItem>
+                )}
               </ContextMenuContent>
             </ContextMenu>
           </div>
         </TabsContent>
         <TabsContent value="lines">
-          <div className="mb-2">
+          <div className="mb-2 flex gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -182,6 +272,24 @@ export function AttributesPanel({
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <p>{highlightedLines.size > 0 ? 'Убрать подсветку линий' : 'Подсветить все линии на карте'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => exportToExcel(linesData, 'lines.xlsx')}
+                    className="h-8"
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Экспорт в Excel
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Экспортировать данные линий в Excel файл</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -235,12 +343,41 @@ export function AttributesPanel({
                   <MapPin className="w-4 h-4 mr-2" />
                   Показать на карте
                 </ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                  // Get the grid API from the context
+                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
+                  let selectedRow = null;
+                  let type = 'lines';
+                  for (const grid of grids) {
+                    const api = (grid as any).__agGridApi;
+                    if (api && api.getSelectedRows) {
+                      const selectedRows = api.getSelectedRows();
+                      if (selectedRows.length > 0) {
+                        selectedRow = selectedRows[0];
+                        type = (grid as any).__contextMenuType || 'lines';
+                        break;
+                      }
+                    }
+                  }
+                  if (selectedRow) {
+                    onFilterToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                  }
+                }}>
+                  <Filter className="w-4 h-4 mr-2" />
+                  Показать только этот
+                </ContextMenuItem>
+                {filteredFeature && filteredFeature.type === 'lines' && (
+                  <ContextMenuItem onClick={() => onClearFilter('lines')}>
+                    <FilterX className="w-4 h-4 mr-2" />
+                    Показать все
+                  </ContextMenuItem>
+                )}
               </ContextMenuContent>
             </ContextMenu>
           </div>
         </TabsContent>
         <TabsContent value="polygons">
-          <div className="mb-2">
+          <div className="mb-2 flex gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -256,6 +393,24 @@ export function AttributesPanel({
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <p>{highlightedPolygons.size > 0 ? 'Убрать подсветку полигонов' : 'Подсветить все полигоны на карте'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => exportToExcel(polygonsData, 'polygons.xlsx')}
+                    className="h-8"
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Экспорт в Excel
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Экспортировать данные полигонов в Excel файл</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -309,6 +464,35 @@ export function AttributesPanel({
                   <MapPin className="w-4 h-4 mr-2" />
                   Показать на карте
                 </ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                  // Get the grid API from the context
+                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
+                  let selectedRow = null;
+                  let type = 'polygons';
+                  for (const grid of grids) {
+                    const api = (grid as any).__agGridApi;
+                    if (api && api.getSelectedRows) {
+                      const selectedRows = api.getSelectedRows();
+                      if (selectedRows.length > 0) {
+                        selectedRow = selectedRows[0];
+                        type = (grid as any).__contextMenuType || 'polygons';
+                        break;
+                      }
+                    }
+                  }
+                  if (selectedRow) {
+                    onFilterToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                  }
+                }}>
+                  <Filter className="w-4 h-4 mr-2" />
+                  Показать только этот
+                </ContextMenuItem>
+                {filteredFeature && filteredFeature.type === 'polygons' && (
+                  <ContextMenuItem onClick={() => onClearFilter('polygons')}>
+                    <FilterX className="w-4 h-4 mr-2" />
+                    Показать все
+                  </ContextMenuItem>
+                )}
               </ContextMenuContent>
             </ContextMenu>
           </div>
