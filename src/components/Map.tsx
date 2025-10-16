@@ -456,9 +456,9 @@ export const MapView = forwardRef<any, {
         }
       });
 
-      // Apply filter to show only the selected feature using != filter
+      // Apply filter to show only the selected feature using == filter
       if (map.getLayer(layerName)) {
-        map.setFilter(layerName, ['!=', 'id', filteredFeature.row.id] as any);
+        map.setFilter(layerName, ['==', 'id', filteredFeature.row.id] as any);
         map.triggerRepaint();
       }
     } else {

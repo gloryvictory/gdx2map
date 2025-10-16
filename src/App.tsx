@@ -13,6 +13,7 @@ import { Checkbox } from './components/ui/checkbox';
 import { LIGHT_MAP_STYLE } from './constants/mapStyles';
 import { ALL_BASEMAPS } from './lib/basemaps';
 import { computeCoordinatesBbox } from './lib/utils';
+import bbox from '@turf/bbox';
 import { TILE_SERVER_URL } from './config';
 import type { Layer, ReportRow, FilteredFeature, SelectedAttributeRow, Feature, LngLat } from './types';
 
@@ -256,55 +257,25 @@ export default function App() {
       if (mapRef.current && row) {
         const map = mapRef.current.getMap();
         const layerName = type === 'points' ? 'gdx2.stp' : type === 'lines' ? 'gdx2.stl' : 'gdx2.sta';
-        const features = map.queryRenderedFeatures(undefined, {
-          layers: [layerName],
-          filter: ['==', 'id', row.id]
-        });
-        if (features.length > 0) {
-          const feature = features[0];
-          const coordinates = feature.geometry.coordinates;
 
-          if (coordinates) {
-            // Calculate bbox for all geometry types
-            let minLng: number, maxLng: number, minLat: number, maxLat: number;
+        if (type === 'lines') {
+          // For lines, get all features in the layer and calculate combined bbox
+          const allFeatures = map.queryRenderedFeatures(undefined, {
+            layers: [layerName]
+          });
+          if (allFeatures.length > 0) {
+            // Create a FeatureCollection from all features
+            const featureCollection = {
+              type: 'FeatureCollection' as const,
+              features: allFeatures.map((f: any) => ({
+                type: 'Feature' as const,
+                geometry: f.geometry,
+                properties: f.properties
+              }))
+            };
+            const bboxCoords = bbox(featureCollection as any);
+            const [minLng, minLat, maxLng, maxLat] = bboxCoords;
 
-            if (type === 'points') {
-              const center = coordinates as [number, number];
-              minLng = maxLng = center[0];
-              minLat = maxLat = center[1];
-            } else if (type === 'lines') {
-              // Calculate bbox for the entire line
-              const coords = coordinates as [number, number][];
-              minLng = coords[0][0];
-              maxLng = coords[0][0];
-              minLat = coords[0][1];
-              maxLat = coords[0][1];
-
-              coords.forEach(coord => {
-                minLng = Math.min(minLng, coord[0]);
-                maxLng = Math.max(maxLng, coord[0]);
-                minLat = Math.min(minLat, coord[1]);
-                maxLat = Math.max(maxLat, coord[1]);
-              });
-            } else {
-              // For polygons, fit bounds to show entire polygon
-              const coords = coordinates as [number, number][][];
-              minLng = coords[0][0][0];
-              maxLng = coords[0][0][0];
-              minLat = coords[0][0][1];
-              maxLat = coords[0][0][1];
-
-              coords.forEach(ring => {
-                ring.forEach(coord => {
-                  minLng = Math.min(minLng, coord[0]);
-                  maxLng = Math.max(maxLng, coord[0]);
-                  minLat = Math.min(minLat, coord[1]);
-                  maxLat = Math.max(maxLat, coord[1]);
-                });
-              });
-            }
-
-            // Zoom to the calculated bbox
             map.fitBounds([
               [minLng, minLat],
               [maxLng, maxLat]
@@ -312,6 +283,32 @@ export default function App() {
               padding: 50,
               duration: 1000
             });
+          }
+        } else {
+          // For points and polygons, zoom to the specific feature
+          const features = map.queryRenderedFeatures(undefined, {
+            layers: [layerName],
+            filter: ['==', 'id', row.id]
+          });
+          if (features.length > 0) {
+            const feature = features[0];
+            const coordinates = feature.geometry.coordinates;
+
+            if (coordinates) {
+              // Use Turf.js bbox for accurate bounding box calculation
+              const geometry = feature.geometry as any;
+              const bboxCoords = bbox(geometry);
+              const [minLng, minLat, maxLng, maxLat] = bboxCoords;
+
+              // Zoom to the calculated bbox
+              map.fitBounds([
+                [minLng, minLat],
+                [maxLng, maxLat]
+              ], {
+                padding: 50,
+                duration: 1000
+              });
+            }
           }
         }
       }
@@ -352,7 +349,8 @@ export default function App() {
           if (features.length > 0) {
             const feature = features[0];
             const geometry = feature.geometry as any;
-            const [minLng, minLat, maxLng, maxLat] = computeCoordinatesBbox(geometry.coordinates);
+            const bboxCoords = bbox(geometry);
+            const [minLng, minLat, maxLng, maxLat] = bboxCoords;
             if (type === 'points') {
               const center = geometry.coordinates as [number, number];
               map.flyTo({ center, zoom: 12, duration: 1000 });
@@ -372,7 +370,8 @@ export default function App() {
               if (featuresRetry.length > 0) {
                 const feature = featuresRetry[0];
                 const geometry = feature.geometry as any;
-                const [minLng, minLat, maxLng, maxLat] = computeCoordinatesBbox(geometry.coordinates);
+                const bboxCoords = bbox(geometry);
+                const [minLng, minLat, maxLng, maxLat] = bboxCoords;
                 if (type === 'points') {
                   const center = geometry.coordinates as [number, number];
                   map.flyTo({ center, zoom: 12, duration: 1000 });
@@ -592,67 +591,64 @@ export default function App() {
                   if (mapRef.current && row) {
                     const map = mapRef.current.getMap();
                     const layerName = type === 'points' ? 'gdx2.stp' : type === 'lines' ? 'gdx2.stl' : 'gdx2.sta';
-                    const features = map.queryRenderedFeatures(undefined, {
-                      layers: [layerName],
-                      filter: ['==', 'id', row.id]
-                    });
-                    if (features.length > 0) {
-                      const feature = features[0];
-                      const coordinates = feature.geometry.coordinates;
-                      if (coordinates) {
-                        if (type === 'points') {
-                          const center = coordinates as [number, number];
-                          map.flyTo({
-                            center: center,
-                            zoom: 12,
-                            duration: 1000
-                          });
-                        } else if (type === 'lines') {
-                          // Calculate bbox for the entire line
-                          const coords = coordinates as [number, number][];
-                          let minLng = coords[0][0];
-                          let maxLng = coords[0][0];
-                          let minLat = coords[0][1];
-                          let maxLat = coords[0][1];
 
-                          coords.forEach(coord => {
-                            minLng = Math.min(minLng, coord[0]);
-                            maxLng = Math.max(maxLng, coord[0]);
-                            minLat = Math.min(minLat, coord[1]);
-                            maxLat = Math.max(maxLat, coord[1]);
-                          });
+                    if (type === 'lines') {
+                      // For lines, get all features in the layer and calculate combined bbox
+                      const allFeatures = map.queryRenderedFeatures(undefined, {
+                        layers: [layerName]
+                      });
+                      if (allFeatures.length > 0) {
+                        // Create a FeatureCollection from all features
+                        const featureCollection = {
+                          type: 'FeatureCollection' as const,
+                          features: allFeatures.map((f: any) => ({
+                            type: 'Feature' as const,
+                            geometry: f.geometry,
+                            properties: f.properties
+                          }))
+                        };
+                        const bboxCoords = bbox(featureCollection as any);
+                        const [minLng, minLat, maxLng, maxLat] = bboxCoords;
 
-                          map.fitBounds([
-                            [minLng, minLat],
-                            [maxLng, maxLat]
-                          ], {
-                            padding: 50,
-                            duration: 1000
-                          });
-                        } else {
-                          // For polygons, fit bounds to show entire polygon
-                          const coords = coordinates as [number, number][][];
-                          let minLng = coords[0][0][0];
-                          let maxLng = coords[0][0][0];
-                          let minLat = coords[0][0][1];
-                          let maxLat = coords[0][0][1];
-
-                          coords.forEach(ring => {
-                            ring.forEach(coord => {
-                              minLng = Math.min(minLng, coord[0]);
-                              maxLng = Math.max(maxLng, coord[0]);
-                              minLat = Math.min(minLat, coord[1]);
-                              maxLat = Math.max(maxLat, coord[1]);
+                        map.fitBounds([
+                          [minLng, minLat],
+                          [maxLng, maxLat]
+                        ], {
+                          padding: 50,
+                          duration: 1000
+                        });
+                      }
+                    } else {
+                      // For points and polygons, zoom to the specific feature
+                      const features = map.queryRenderedFeatures(undefined, {
+                        layers: [layerName],
+                        filter: ['==', 'id', row.id]
+                      });
+                      if (features.length > 0) {
+                        const feature = features[0];
+                        const coordinates = feature.geometry.coordinates;
+                        if (coordinates) {
+                          if (type === 'points') {
+                            const center = coordinates as [number, number];
+                            map.flyTo({
+                              center: center,
+                              zoom: 12,
+                              duration: 1000
                             });
-                          });
+                          } else {
+                            // Use Turf.js bbox for accurate bounding box calculation
+                            const geometry = feature.geometry as any;
+                            const bboxCoords = bbox(geometry);
+                            const [minLng, minLat, maxLng, maxLat] = bboxCoords;
 
-                          map.fitBounds([
-                            [minLng, minLat],
-                            [maxLng, maxLat]
-                          ], {
-                            padding: 50,
-                            duration: 1000
-                          });
+                            map.fitBounds([
+                              [minLng, minLat],
+                              [maxLng, maxLat]
+                            ], {
+                              padding: 50,
+                              duration: 1000
+                            });
+                          }
                         }
                       }
                     }

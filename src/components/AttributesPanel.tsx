@@ -175,7 +175,7 @@ export function AttributesPanel({
               </Tooltip>
             </TooltipProvider>
           </div>
-          <div className="ag-theme-alpine" style={{ height: 300, width: '100%' }}>
+          <div className="ag-theme-alpine ag-grid-container">
             <ContextMenu>
               <ContextMenuTrigger>
                 <AgGridReact
@@ -187,11 +187,11 @@ export function AttributesPanel({
                   suppressNoRowsOverlay={false}
                   rowSelection="single"
                   onRowClicked={(event) => onAttributeRowSelect(event.data, 'points')}
-                  getRowStyle={(params) => {
+                  getRowClass={(params) => {
                     if (selectedAttributeRow && selectedAttributeRow.type === 'points' && selectedAttributeRow.data.id === params.data.id) {
-                      return { backgroundColor: '#e3f2fd' };
+                      return 'selected-row';
                     }
-                    return undefined;
+                    return '';
                   }}
                   onGridReady={(params) => {
                     // Store grid API for context menu
@@ -296,7 +296,7 @@ export function AttributesPanel({
               </Tooltip>
             </TooltipProvider>
           </div>
-          <div className="ag-theme-alpine" style={{ height: 300, width: '100%' }}>
+          <div className="ag-theme-alpine ag-grid-container">
             <ContextMenu>
               <ContextMenuTrigger>
                 <AgGridReact
@@ -308,11 +308,11 @@ export function AttributesPanel({
                   suppressNoRowsOverlay={false}
                   rowSelection="single"
                   onRowClicked={(event) => onAttributeRowSelect(event.data, 'lines')}
-                  getRowStyle={(params) => {
+                  getRowClass={(params) => {
                     if (selectedAttributeRow && selectedAttributeRow.type === 'lines' && selectedAttributeRow.data.id === params.data.id) {
-                      return { backgroundColor: '#e3f2fd' };
+                      return 'selected-row';
                     }
-                    return undefined;
+                    return '';
                   }}
                   onGridReady={(params) => {
                     // Store grid API for context menu
@@ -417,7 +417,7 @@ export function AttributesPanel({
               </Tooltip>
             </TooltipProvider>
           </div>
-          <div className="ag-theme-alpine" style={{ height: 300, width: '100%' }}>
+          <div className="ag-theme-alpine ag-grid-container">
             <ContextMenu>
               <ContextMenuTrigger>
                 <AgGridReact
@@ -429,11 +429,11 @@ export function AttributesPanel({
                   suppressNoRowsOverlay={false}
                   rowSelection="single"
                   onRowClicked={(event) => onAttributeRowSelect(event.data, 'polygons')}
-                  getRowStyle={(params) => {
+                  getRowClass={(params) => {
                     if (selectedAttributeRow && selectedAttributeRow.type === 'polygons' && selectedAttributeRow.data.id === params.data.id) {
-                      return { backgroundColor: '#e3f2fd' };
+                      return 'selected-row';
                     }
-                    return undefined;
+                    return '';
                   }}
                   onGridReady={(params) => {
                     // Store grid API for context menu

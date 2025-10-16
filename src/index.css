@@ -89,3 +89,13 @@
 .legend-color {
   background-color: var(--legend-color);
 }
+
+/* AG Grid utilities */
+.ag-grid-container {
+  height: 300px;
+  width: 100%;
+}
+
+.selected-row {
+  background-color: #e3f2fd;
+}

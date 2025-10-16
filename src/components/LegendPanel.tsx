@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { layersConfig } from '../layers';
 
 interface LegendPanelProps {
   visibleLayers: Set<string>;
@@ -13,14 +14,22 @@ export function LegendPanel({ visibleLayers, layers }: LegendPanelProps) {
     // Generate legend items based on visible layers
     const items = layers
       .filter(layer => visibleLayers.has(layer.name))
+      .reverse()
       .map(layer => {
-        // Define colors for different layer types
-        let color = '#666666';
-        if (layer.name.includes('stp')) color = '#ff6b6b'; // Points - red
-        else if (layer.name.includes('stl')) color = '#4ecdc4'; // Lines - teal
-        else if (layer.name.includes('sta')) color = '#45b7d1'; // Polygons - blue
-        else if (layer.name.includes('lu')) color = '#96ceb4'; // License areas - green
-        else if (layer.name.includes('field')) color = '#feca57'; // Fields - yellow
+        // Get color from layer configuration
+        const config = layersConfig[layer.name];
+        let color = '#666666'; // default color
+
+        if (config) {
+          const layerSpec = config.layer;
+          if (layerSpec.type === 'circle' && 'paint' in layerSpec && layerSpec.paint && 'circle-color' in layerSpec.paint) {
+            color = layerSpec.paint['circle-color'] as string;
+          } else if (layerSpec.type === 'line' && 'paint' in layerSpec && layerSpec.paint && 'line-color' in layerSpec.paint) {
+            color = layerSpec.paint['line-color'] as string;
+          } else if (layerSpec.type === 'fill' && 'paint' in layerSpec && layerSpec.paint && 'fill-color' in layerSpec.paint) {
+            color = layerSpec.paint['fill-color'] as string;
+          }
+        }
 
         return {
           name: layer.name,
@@ -29,7 +38,7 @@ export function LegendPanel({ visibleLayers, layers }: LegendPanelProps) {
           visible: visibleLayers.has(layer.name)
         };
       });
-    
+
     setLegendItems(items);
   }, [visibleLayers, layers]);
 
@@ -40,9 +49,9 @@ export function LegendPanel({ visibleLayers, layers }: LegendPanelProps) {
         {legendItems.length > 0 ? (
           legendItems.map((item) => (
             <div key={item.name} className="flex items-center gap-2">
-              <div 
-                className="w-4 h-4 rounded border"
-                style={{ backgroundColor: item.color }}
+              <div
+                className="w-4 h-4 rounded border legend-color"
+                style={{ '--legend-color': item.color } as React.CSSProperties}
               />
               <span className="text-sm">{item.title}</span>
             </div>
