@@ -23,24 +23,26 @@ import {
 // Register all community features
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+import type { ReportRow, SelectedAttributeRow, FilteredFeature } from '../types';
+
 interface AttributesPanelProps {
   visibleLayers: Set<string>;
   onLayerToggle: (layerName: string, checked: boolean) => void;
-  pointsData: any[];
-  linesData: any[];
-  polygonsData: any[];
+  pointsData: ReportRow[];
+  linesData: ReportRow[];
+  polygonsData: ReportRow[];
   highlightedPoints: Set<string>;
   highlightedLines: Set<string>;
   highlightedPolygons: Set<string>;
   onToggleHighlightPoints: () => void;
   onToggleHighlightLines: () => void;
   onToggleHighlightPolygons: () => void;
-  selectedAttributeRow: any;
-  onAttributeRowSelect: (row: any, type: 'points' | 'lines' | 'polygons') => void;
-  onZoomToFeature: (row: any, type: 'points' | 'lines' | 'polygons') => void;
-  onFilterToFeature: (row: any, type: 'points' | 'lines' | 'polygons') => void;
+  selectedAttributeRow: SelectedAttributeRow | null;
+  onAttributeRowSelect: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
+  onZoomToFeature: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
+  onFilterToFeature: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
   onClearFilter: (type: 'points' | 'lines' | 'polygons') => void;
-  filteredFeature: { row: any; type: 'points' | 'lines' | 'polygons' } | null;
+  filteredFeature: FilteredFeature | null;
 }
 
 export function AttributesPanel({
@@ -89,7 +91,7 @@ export function AttributesPanel({
 
   const columns = getColumns();
 
-  const exportToExcel = (data: any[], filename: string) => {
+  const exportToExcel = (data: ReportRow[], filename: string) => {
     // Create a mapping from English keys to Russian labels
     const tableRows = [
       { label: 'Автор', key: 'avts' },
@@ -112,7 +114,7 @@ export function AttributesPanel({
 
     // Transform data to use Russian column names
     const transformedData = data.map(row => {
-      const newRow: any = {};
+      const newRow: Record<string, string | number> = {};
       tableRows.forEach(({ label, key }) => {
         newRow[label] = row[key] || '';
       });

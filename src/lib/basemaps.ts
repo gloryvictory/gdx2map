@@ -1,15 +1,9 @@
 // biome-ignore assist/source/organizeImports: <explanation>
 import services from '../data/services.json';
-import {
-  BASEMAPS as PRESET_BASEMAPS,
-  createXyzRasterStyle,
-} from '../constants/mapStyles';
+import { BASEMAPS as PRESET_BASEMAPS, createXyzRasterStyle } from '../constants/mapStyles';
+import type { BasemapEntry, ServiceCatalog, ServiceCategory, TmsEntry } from '../types';
 
-type BasemapEntry = {
-  key: string;
-  label: string;
-  url: string | object | null;
-};
+// Use shared BasemapEntry from types
 
 function expandBracketHost(url: string): string[] {
   // Expand patterns like [0123], [abcd], [1234] into multiple URLs
@@ -29,9 +23,10 @@ function convertTemplate(url: string): string {
 function buildFromServices(): BasemapEntry[] {
   const list: BasemapEntry[] = [];
   try {
-    const categories = (services?.services?.category ?? []) as Array<any>;
+    const svc = services as unknown as ServiceCatalog;
+    const categories = (svc?.services?.category ?? []) as ServiceCategory[];
     for (const cat of categories) {
-      for (const t of cat.tms ?? []) {
+      for (const t of (cat.tms ?? []) as TmsEntry[]) {
         if (t.type !== 'xyz' || !t.url) continue;
         const tiles = expandBracketHost(convertTemplate(String(t.url)));
         const style = createXyzRasterStyle(tiles, t.title ?? cat.name);

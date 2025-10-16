@@ -11,9 +11,11 @@ import {
 } from './ui/tooltip';
 import { FeatureTable } from './map/FeatureTable';
 
+import type { Feature, SelectedAttributeRow } from '../types';
+
 interface RightPanelProps {
-  hoveredFeatures: any[];
-  clickedFeatures: any[];
+  hoveredFeatures: Feature[];
+  clickedFeatures: Feature[];
   children: React.ReactNode;
   showFeatureTable: boolean;
   onToggleFeatureTable: (show: boolean) => void;
@@ -24,15 +26,15 @@ interface RightPanelProps {
   showMarkerAttributes: boolean;
   showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
-  selectedFeature: any;
-  onFeatureSelect: (feature: any) => void;
-  onFeatureHover: (feature: any) => void;
+  selectedFeature: Feature | null;
+  onFeatureSelect: (feature: Feature | null) => void;
+  onFeatureHover: (feature: Feature | null) => void;
   onMarkerAttributesClick: () => void;
   showRectangleSelection: boolean;
-  onToggleRectangleSelection: () => void;
+  onSetRectangleSelection: (enabled: boolean) => void;
 }
 
-function exportToExcel(features: any[]) {
+function exportToExcel(features: Feature[]) {
   if (features.length === 0) return;
 
   const workbook = XLSX.utils.book_new();
@@ -105,7 +107,7 @@ function exportToExcel(features: any[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onToggleRectangleSelection }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0);
 // isInfoPanelOpen ? 60 : 80
@@ -209,7 +211,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onSetActiveInfoMode('points');
                       // Deactivate other modes
                       onToggleMarkerInfo(false);
-                      onToggleRectangleSelection();
+                      onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
                     }
                   }}
@@ -234,7 +236,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onSetActiveInfoMode('lines');
                       // Deactivate other modes
                       onToggleMarkerInfo(false);
-                      onToggleRectangleSelection();
+                      onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
                     }
                   }}
@@ -259,7 +261,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onSetActiveInfoMode('polygons');
                       // Deactivate other modes
                       onToggleMarkerInfo(false);
-                      onToggleRectangleSelection();
+                      onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
                     }
                   }}
@@ -283,7 +285,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                     } else {
                       onToggleMarkerInfo(true);
                       onSetActiveInfoMode(null);
-                      onToggleRectangleSelection();
+                      onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
                     }
                   }}
@@ -306,7 +308,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                     // Deactivate other modes when activating marker attributes
                     onSetActiveInfoMode(null);
                     onToggleMarkerInfo(false);
-                    onToggleRectangleSelection();
+                    onSetRectangleSelection(false);
                   }}
                   className="w-10 h-10"
                 >
@@ -323,11 +325,15 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                   variant={showRectangleSelection ? "default" : "outline"}
                   size="icon"
                   onClick={() => {
-                    onToggleRectangleSelection();
-                    // Deactivate other modes when activating rectangle selection
-                    onSetActiveInfoMode(null);
-                    onToggleMarkerInfo(false);
-                    // Note: showMarkerAttributes is handled in App.tsx
+                    if (showRectangleSelection) {
+                      onSetRectangleSelection(false);
+                    } else {
+                      onSetRectangleSelection(true);
+                      // Deactivate other modes when activating rectangle selection
+                      onSetActiveInfoMode(null);
+                      onToggleMarkerInfo(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
                   }}
                   className="w-10 h-10"
                 >

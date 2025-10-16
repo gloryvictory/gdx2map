@@ -1,11 +1,12 @@
 import { MapGeoJSONFeature } from 'maplibre-gl';
+import type { Feature } from '../../types';
 
 interface FeatureTableProps {
-  feature: MapGeoJSONFeature;
+  feature: Feature;
   index: number;
-  selectedFeature: any;
-  onFeatureSelect: (feature: any) => void;
-  onFeatureHover: (feature: any) => void;
+  selectedFeature: Feature | null;
+  onFeatureSelect: (feature: Feature | null) => void;
+  onFeatureHover: (feature: Feature | null) => void;
 }
 
 export const FeatureTable = ({ feature, index, selectedFeature, onFeatureSelect, onFeatureHover }: FeatureTableProps) => {

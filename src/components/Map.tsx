@@ -8,37 +8,30 @@ import ReactMapGL, {
   type ViewState,
 } from 'react-map-gl/maplibre';
 import { layersConfig } from '../layers';
-type Layer = {
-  name: string;
-  title: string;
-  description: string;
-  type: string;
-  url: string;
-  level: { min: number; max: number };
-};
+import type { Layer, Feature, LngLat, BBox, SelectedAttributeRow, FilteredFeature } from '../types';
 
 export const MapView = forwardRef<any, {
   styleUrl: string | object | null;
   visibleLayers: Set<string>;
   layers: Layer[];
-  onFeaturesHover: (features: any[]) => void;
+  onFeaturesHover: (features: Feature[]) => void;
   enableHover: boolean;
   infoMode: 'points' | 'lines' | 'polygons' | null;
-  onClick: (features: any[], lngLat: {lng: number, lat: number}) => void;
-  marker: {lng: number, lat: number} | null;
-  onMouseMoveCoords: (coords: {lng: number, lat: number} | null) => void;
+  onClick: (features: Feature[], lngLat: LngLat) => void;
+  marker: LngLat | null;
+  onMouseMoveCoords: (coords: LngLat | null) => void;
   highlightedPoints: Set<string>;
   highlightedLines: Set<string>;
   highlightedPolygons: Set<string>;
   onZoomChange: (zoom: number) => void;
-  selectedFeature: any;
-  hoveredFeature: any;
-  selectedAttributeRow: any;
+  selectedFeature: Feature | null;
+  hoveredFeature: Feature | null;
+  selectedAttributeRow: SelectedAttributeRow | null;
   onRedrawStart?: () => void;
   onRedrawEnd?: () => void;
-  filteredFeature?: { row: any; type: 'points' | 'lines' | 'polygons' } | null;
+  filteredFeature?: FilteredFeature | null;
   rectangleSelection?: boolean;
-  onRectangleSelect?: (bounds: [[number, number], [number, number]]) => void;
+  onRectangleSelect?: (bounds: BBox) => void;
 }>(({
   styleUrl,
   visibleLayers,
@@ -66,6 +59,7 @@ export const MapView = forwardRef<any, {
   const mapRef = useRef<MapRef | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [rectangleStart, setRectangleStart] = useState<{lng: number, lat: number} | null>(null);
+  const [rectangleCurrent, setRectangleCurrent] = useState<{lng: number, lat: number} | null>(null);
 
   useImperativeHandle(ref, () => ({
     getMap: () => mapRef.current?.getMap()
@@ -89,7 +83,13 @@ export const MapView = forwardRef<any, {
     if (!map) return;
 
     // Update mouse coordinates
-    onMouseMoveCoords({ lng: evt.lngLat.lng, lat: evt.lngLat.lat });
+    const currentLngLat = { lng: evt.lngLat.lng, lat: evt.lngLat.lat };
+    onMouseMoveCoords(currentLngLat);
+
+    // Update rectangle current point while selecting
+    if (rectangleSelection && rectangleStart) {
+      setRectangleCurrent(currentLngLat);
+    }
 
     let filteredTargetNames = targetLayerNames;
     if (infoMode === 'points') {
@@ -106,18 +106,20 @@ export const MapView = forwardRef<any, {
 
     if (visibleTargetLayers.length === 0) {
       if (enableHover) onFeaturesHover([]);
-      map.getCanvas().style.cursor = '';
+      if (!rectangleSelection) {
+        map.getCanvas().style.cursor = '';
+      }
       return;
     }
 
     const features = map.queryRenderedFeatures(evt.point, {
       layers: visibleTargetLayers,
-    });
+    }) as unknown as Feature[];
     if (enableHover) onFeaturesHover(features);
-
-    // Change cursor to pointer if features are found
-    map.getCanvas().style.cursor = features.length > 0 ? 'pointer' : '';
-  }, [mapLoaded, onFeaturesHover, visibleLayers, enableHover, infoMode, onMouseMoveCoords]);
+    if (!rectangleSelection) {
+      map.getCanvas().style.cursor = features.length > 0 ? 'pointer' : '';
+    }
+  }, [mapLoaded, onFeaturesHover, visibleLayers, enableHover, infoMode, onMouseMoveCoords, rectangleSelection, rectangleStart]);
 
   const onMapClick = useCallback((evt: any) => {
     if (!mapLoaded) return;
@@ -139,6 +141,7 @@ export const MapView = forwardRef<any, {
         console.log('Rectangle selection completed with bounds:', bounds);
         onRectangleSelect?.(bounds);
         setRectangleStart(null);
+        setRectangleCurrent(null);
       }
       return;
     }
@@ -149,7 +152,7 @@ export const MapView = forwardRef<any, {
 
     const features = map.queryRenderedFeatures(evt.point, {
       layers: visibleTargetLayers,
-    });
+    }) as unknown as Feature[];
     onClick(features, { lng: evt.lngLat.lng, lat: evt.lngLat.lat });
   }, [mapLoaded, visibleLayers, onClick, rectangleSelection, rectangleStart, onRectangleSelect]);
 
@@ -383,7 +386,7 @@ export const MapView = forwardRef<any, {
         if (config) {
           const selectedAttributeLayer = { ...config.layer };
           selectedAttributeLayer.id = selectedAttributeLayerId;
-          selectedAttributeLayer.filter = ['==', 'id', selectedAttributeRow.data.id];
+          selectedAttributeLayer.filter = ['==', 'id', selectedAttributeRow.data.id] as any;
           // Modify style for selection
           if (selectedAttributeLayer.type === 'circle') {
             selectedAttributeLayer.paint = {
@@ -423,8 +426,9 @@ export const MapView = forwardRef<any, {
     if (!map) return;
 
     // Zoom to selected feature
+    const coords = (selectedFeature.geometry as any).coordinates as [number, number];
     map.flyTo({
-      center: [selectedFeature.geometry.coordinates[0], selectedFeature.geometry.coordinates[1]],
+      center: [coords[0], coords[1]],
       zoom: 12,
       duration: 1000
     });
@@ -454,7 +458,7 @@ export const MapView = forwardRef<any, {
 
       // Apply filter to show only the selected feature using != filter
       if (map.getLayer(layerName)) {
-        map.setFilter(layerName, ['!=', 'id', filteredFeature.row.id]);
+        map.setFilter(layerName, ['!=', 'id', filteredFeature.row.id] as any);
         map.triggerRepaint();
       }
     } else {
@@ -470,23 +474,30 @@ export const MapView = forwardRef<any, {
     }
   }, [filteredFeature, mapLoaded]);
 
-  // Handle rectangle selection mode cursor
+  // Handle cursor style: arrow for rectangle selection, otherwise allow hover logic to set pointer
   useEffect(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
 
     if (rectangleSelection) {
-      map.getCanvas().style.cursor = rectangleStart ? 'crosshair' : 'crosshair';
+      map.getCanvas().style.cursor = 'default'; // arrow
     } else {
       map.getCanvas().style.cursor = '';
     }
-  }, [rectangleSelection, rectangleStart, mapLoaded]);
+  }, [rectangleSelection, mapLoaded]);
+
+  // Clear local rectangle state when tool is turned off
+  useEffect(() => {
+    if (!rectangleSelection) {
+      setRectangleStart(null);
+      setRectangleCurrent(null);
+    }
+  }, [rectangleSelection]);
 
   return (
     <div
-      className="relative w-full rounded-md border overflow-hidden"
-      style={{ height: '100%' }}
+      className="relative w-full h-full rounded-md border overflow-hidden"
     >
       <ReactMapGL
         ref={mapRef}
@@ -494,7 +505,7 @@ export const MapView = forwardRef<any, {
         reuseMaps
         mapStyle={styleUrl as any}
         {...viewState}
-        style={{ width: '100%', height: '100%' }}
+        className="w-full h-full"
         onLoad={() => setMapLoaded(true)}
         onStyleLoad={() => updateLayers()}
         onMove={onMove}
@@ -505,10 +516,29 @@ export const MapView = forwardRef<any, {
         <NavigationControl visualizePitch position="top-right" />
         {marker && (
           <Marker longitude={marker.lng} latitude={marker.lat}>
-            <div style={{ color: 'red', fontSize: '24px' }}>📍</div>
+            <div className="map-marker-emoji">📍</div>
           </Marker>
         )}
       </ReactMapGL>
+      {rectangleSelection && rectangleStart && rectangleCurrent && mapLoaded && (
+        (() => {
+          const map = mapRef.current?.getMap();
+          if (!map) return null;
+          const p1 = map.project(rectangleStart as any) as any;
+          const p2 = map.project(rectangleCurrent as any) as any;
+          const left = Math.min(p1.x, p2.x);
+          const top = Math.min(p1.y, p2.y);
+          const width = Math.abs(p1.x - p2.x);
+          const height = Math.abs(p1.y - p2.y);
+          return (
+            <div className="map-rectangle-container">
+              <svg className="map-rectangle-svg">
+                <rect x={left} y={top} width={width} height={height} className="map-rectangle-rect" />
+              </svg>
+            </div>
+          );
+        })()
+      )}
     </div>
   );
 });
