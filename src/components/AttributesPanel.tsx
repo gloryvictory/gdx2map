@@ -4,7 +4,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
-import { Eye, MapPin, Filter, FilterX, Download } from 'lucide-react';
+import { Eye, MapPin, Filter, FilterX, Download, Square } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import {
@@ -43,6 +43,7 @@ interface AttributesPanelProps {
   onFilterToFeature: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
   onClearFilter: (type: 'points' | 'lines' | 'polygons') => void;
   filteredFeature: FilteredFeature | null;
+  onShowBbox: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
 }
 
 export function AttributesPanel({
@@ -62,7 +63,8 @@ export function AttributesPanel({
   onZoomToFeature,
   onFilterToFeature,
   onClearFilter,
-  filteredFeature
+  filteredFeature,
+  onShowBbox
 }: AttributesPanelProps) {
 
   const fieldDescriptions: Record<string, string> = {
@@ -116,7 +118,8 @@ export function AttributesPanel({
     const transformedData = data.map(row => {
       const newRow: Record<string, string | number> = {};
       tableRows.forEach(({ label, key }) => {
-        newRow[label] = row[key] || '';
+        const value = row[key];
+        newRow[label] = (value != null ? value : '') as string | number;
       });
       return newRow;
     });
@@ -197,32 +200,38 @@ export function AttributesPanel({
                     // Store grid API for context menu
                     (params.api as any).__contextMenuType = 'points';
                     (params.api as any).__onZoomToFeature = onZoomToFeature;
+                    (params.api as any).__onShowBbox = onShowBbox;
                   }}
                 />
               </ContextMenuTrigger>
               <ContextMenuContent>
                 <ContextMenuItem onClick={() => {
-                  // Get the grid API from the context
-                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
-                  let selectedRow = null;
-                  let type = 'points';
-                  for (const grid of grids) {
-                    const api = (grid as any).__agGridApi;
-                    if (api && api.getSelectedRows) {
-                      const selectedRows = api.getSelectedRows();
-                      if (selectedRows.length > 0) {
-                        selectedRow = selectedRows[0];
-                        type = (grid as any).__contextMenuType || 'points';
-                        break;
-                      }
-                    }
-                  }
+                  console.log('Zoom to feature clicked for points');
+                  // Use selectedAttributeRow instead of querying grid
+                  const selectedRow = selectedAttributeRow?.data;
+                  console.log('selectedRow for zoom:', selectedRow, 'type: points');
                   if (selectedRow) {
-                    onZoomToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                    onZoomToFeature(selectedRow, 'points');
+                  } else {
+                    console.log('No selected row found for zoom');
                   }
                 }}>
                   <MapPin className="w-4 h-4 mr-2" />
                   Показать на карте
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                  console.log('Show bbox clicked for points');
+                  // Use the passed onShowBbox directly
+                  const selectedRow = selectedAttributeRow?.data;
+                  if (selectedRow && onShowBbox) {
+                    console.log('Calling onShowBbox with:', selectedRow, 'points');
+                    onShowBbox(selectedRow, 'points');
+                  } else {
+                    console.log('No selected row or onShowBbox function');
+                  }
+                }}>
+                  <Square className="w-4 h-4 mr-2" />
+                  Показать bbox
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => {
                   // Get the grid API from the context
@@ -306,7 +315,7 @@ export function AttributesPanel({
                   defaultColDef={{ flex: 1, minWidth: 100 }}
                   ensureDomOrder
                   suppressNoRowsOverlay={false}
-                  rowSelection="single"
+                  rowSelection={{ mode: 'singleRow' }}
                   onRowClicked={(event) => onAttributeRowSelect(event.data, 'lines')}
                   getRowClass={(params) => {
                     if (selectedAttributeRow && selectedAttributeRow.type === 'lines' && selectedAttributeRow.data.id === params.data.id) {
@@ -318,32 +327,38 @@ export function AttributesPanel({
                     // Store grid API for context menu
                     (params.api as any).__contextMenuType = 'lines';
                     (params.api as any).__onZoomToFeature = onZoomToFeature;
+                    (params.api as any).__onShowBbox = onShowBbox;
                   }}
                 />
               </ContextMenuTrigger>
               <ContextMenuContent>
                 <ContextMenuItem onClick={() => {
-                  // Get the grid API from the context
-                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
-                  let selectedRow = null;
-                  let type = 'lines';
-                  for (const grid of grids) {
-                    const api = (grid as any).__agGridApi;
-                    if (api && api.getSelectedRows) {
-                      const selectedRows = api.getSelectedRows();
-                      if (selectedRows.length > 0) {
-                        selectedRow = selectedRows[0];
-                        type = (grid as any).__contextMenuType || 'lines';
-                        break;
-                      }
-                    }
-                  }
+                  console.log('Zoom to feature clicked for lines');
+                  // Use selectedAttributeRow instead of querying grid
+                  const selectedRow = selectedAttributeRow?.data;
+                  console.log('selectedRow for zoom:', selectedRow, 'type: lines');
                   if (selectedRow) {
-                    onZoomToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                    onZoomToFeature(selectedRow, 'lines');
+                  } else {
+                    console.log('No selected row found for zoom');
                   }
                 }}>
                   <MapPin className="w-4 h-4 mr-2" />
                   Показать на карте
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                  console.log('Show bbox clicked for lines');
+                  // Use the passed onShowBbox directly
+                  const selectedRow = selectedAttributeRow?.data;
+                  if (selectedRow && onShowBbox) {
+                    console.log('Calling onShowBbox with:', selectedRow, 'lines');
+                    onShowBbox(selectedRow, 'lines');
+                  } else {
+                    console.log('No selected row or onShowBbox function');
+                  }
+                }}>
+                  <Square className="w-4 h-4 mr-2" />
+                  Показать bbox
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => {
                   // Get the grid API from the context
@@ -439,32 +454,38 @@ export function AttributesPanel({
                     // Store grid API for context menu
                     (params.api as any).__contextMenuType = 'polygons';
                     (params.api as any).__onZoomToFeature = onZoomToFeature;
+                    (params.api as any).__onShowBbox = onShowBbox;
                   }}
                 />
               </ContextMenuTrigger>
               <ContextMenuContent>
                 <ContextMenuItem onClick={() => {
-                  // Get the grid API from the context
-                  const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
-                  let selectedRow = null;
-                  let type = 'polygons';
-                  for (const grid of grids) {
-                    const api = (grid as any).__agGridApi;
-                    if (api && api.getSelectedRows) {
-                      const selectedRows = api.getSelectedRows();
-                      if (selectedRows.length > 0) {
-                        selectedRow = selectedRows[0];
-                        type = (grid as any).__contextMenuType || 'polygons';
-                        break;
-                      }
-                    }
-                  }
+                  console.log('Zoom to feature clicked for polygons');
+                  // Use selectedAttributeRow instead of querying grid
+                  const selectedRow = selectedAttributeRow?.data;
+                  console.log('selectedRow for zoom:', selectedRow, 'type: polygons');
                   if (selectedRow) {
-                    onZoomToFeature(selectedRow, type as 'points' | 'lines' | 'polygons');
+                    onZoomToFeature(selectedRow, 'polygons');
+                  } else {
+                    console.log('No selected row found for zoom');
                   }
                 }}>
                   <MapPin className="w-4 h-4 mr-2" />
                   Показать на карте
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                  console.log('Show bbox clicked for polygons');
+                  // Use the passed onShowBbox directly
+                  const selectedRow = selectedAttributeRow?.data;
+                  if (selectedRow && onShowBbox) {
+                    console.log('Calling onShowBbox with:', selectedRow, 'polygons');
+                    onShowBbox(selectedRow, 'polygons');
+                  } else {
+                    console.log('No selected row or onShowBbox function');
+                  }
+                }}>
+                  <Square className="w-4 h-4 mr-2" />
+                  Показать bbox
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => {
                   // Get the grid API from the context

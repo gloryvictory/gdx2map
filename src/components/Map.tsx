@@ -162,7 +162,7 @@ export const MapView = forwardRef<any, {
     if (!map) return;
 
     onRedrawStart?.();
-    console.log('Adding layers', visibleLayers);
+    // console.log('Adding layers', visibleLayers);
 
     const allLayers = layers;
 
@@ -177,25 +177,25 @@ export const MapView = forwardRef<any, {
       if (visibleLayers.has(layer.name)) {
         // Add source if not exists
         if (!map.getSource(sourceId)) {
-          console.log('Adding source', sourceId);
+          // console.log('Adding source', sourceId);
           map.addSource(sourceId, config.source);
         }
         // Add layer if not exists
         if (!map.getLayer(layerId)) {
-          console.log('Adding layer', layerId);
+          // console.log('Adding layer', layerId);
           map.addLayer(config.layer);
           map.triggerRepaint();
         }
-        // For lu, also add labels
-        if (layer.name === 'lu') {
-          const labelsConfig = layersConfig.lu_labels;
-          const labelsId = labelsConfig.layer.id;
-          if (!map.getLayer(labelsId)) {
-            console.log('Adding layer', labelsId);
-            map.addLayer(labelsConfig.layer);
-            map.triggerRepaint();
-          }
-        }
+        // For lu, also add labels (removed - lu_labels requires glyphs)
+        // if (layer.name === 'lu') {
+        //   const labelsConfig = layersConfig.lu_labels;
+        //   const labelsId = labelsConfig.layer.id;
+        //   if (!map.getLayer(labelsId)) {
+        //     console.log('Adding layer', labelsId);
+        //     map.addLayer(labelsConfig.layer);
+        //     map.triggerRepaint();
+        //   }
+        // }
 
         // Add highlight layer if there are highlighted features
         let highlightedIds: string[] = [];
@@ -251,15 +251,15 @@ export const MapView = forwardRef<any, {
         if (map.getLayer(highlightLayerId)) {
           map.removeLayer(highlightLayerId);
         }
-        // For lu, remove labels too
-        if (layer.name === 'lu') {
-          const labelsConfig = layersConfig.lu_labels;
-          const labelsId = labelsConfig.layer.id;
-          if (map.getLayer(labelsId)) {
-            console.log('Removing layer', labelsId);
-            map.removeLayer(labelsId);
-          }
-        }
+        // For lu, remove labels too (removed - lu_labels no longer exists)
+        // if (layer.name === 'lu') {
+        //   const labelsConfig = layersConfig.lu_labels;
+        //   const labelsId = labelsConfig.layer.id;
+        //   if (map.getLayer(labelsId)) {
+        //     console.log('Removing layer', labelsId);
+        //     map.removeLayer(labelsId);
+        //   }
+        // }
         // Remove source if exists (only if no other layers use it)
         if (map.getSource(sourceId)) {
           // Check if any layers use this source

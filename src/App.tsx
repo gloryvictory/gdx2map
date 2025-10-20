@@ -10,6 +10,7 @@ import { BottomPanel } from './components/BottomPanel';
 import { Label } from './components/ui/label';
 import { RadioGroup, RadioGroupItem } from './components/ui/radio-group';
 import { Checkbox } from './components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './components/ui/dialog';
 import { LIGHT_MAP_STYLE } from './constants/mapStyles';
 import { ALL_BASEMAPS } from './lib/basemaps';
 import { computeCoordinatesBbox } from './lib/utils';
@@ -51,6 +52,8 @@ export default function App() {
   const [isMapRedrawing, setIsMapRedrawing] = useState(false);
   const [filteredFeature, setFilteredFeature] = useState<FilteredFeature | null>(null);
   const [showRectangleSelection, setShowRectangleSelection] = useState(false);
+  const [showBboxDialog, setShowBboxDialog] = useState(false);
+  const [bboxData, setBboxData] = useState<{ minLng: number; minLat: number; maxLng: number; maxLat: number } | null>(null);
   const mapRef = useRef<any>(null);
 
   useEffect(() => {
@@ -250,7 +253,7 @@ export default function App() {
     setFilteredFeature({ row, type });
     // Ensure layer is visible
     const layerName = type === 'points' ? 'stp' : type === 'lines' ? 'stl' : 'sta';
-    setVisibleLayers(prev => new Set([layerName])); // Only show this layer
+    setVisibleLayers(new Set([layerName])); // Only show this layer
 
     // Zoom to the feature
     setTimeout(() => {
@@ -320,6 +323,32 @@ export default function App() {
     // Restore all layers
     const allLayers = ['field', 'lu', 'sta', 'stl', 'stp'];
     setVisibleLayers(new Set(allLayers));
+  };
+
+  const handleShowBbox = (row: ReportRow, type: 'points' | 'lines' | 'polygons') => {
+    console.log('handleShowBbox called with row:', row, 'type:', type);
+    if (mapRef.current && row) {
+      const map = mapRef.current.getMap();
+      const layerName = type === 'points' ? 'gdx2.stp' : type === 'lines' ? 'gdx2.stl' : 'gdx2.sta';
+      const sourceId = layerName;
+      const sourceLayer = layerName.split('.')[1];
+
+      const features = map.querySourceFeatures(sourceId, {
+        sourceLayer: sourceLayer,
+        filter: ['==', 'id', row.id]
+      });
+
+      console.log('Found features:', features.length);
+      if (features.length > 0) {
+        const feature = features[0];
+        const geometry = feature.geometry as any;
+        const bboxCoords = bbox(geometry);
+        const [minLng, minLat, maxLng, maxLat] = bboxCoords;
+        console.log('Bbox coords:', bboxCoords);
+        setBboxData({ minLng, minLat, maxLng, maxLat });
+        setShowBboxDialog(true);
+      }
+    }
   };
 
   const handleAttributeRowSelect = (row: ReportRow, type: 'points' | 'lines' | 'polygons') => {
@@ -392,6 +421,35 @@ export default function App() {
   return (
     <div className={`min-h-screen bg-background text-foreground relative ${theme}`}>
       <AppHeader theme={theme} onThemeChange={setTheme} />
+      <Dialog open={showBboxDialog} onOpenChange={setShowBboxDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bounding Box объекта</DialogTitle>
+          </DialogHeader>
+          {bboxData && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Минимальная долгота:</label>
+                  <p className="text-sm text-muted-foreground">{bboxData.minLng.toFixed(6)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Максимальная долгота:</label>
+                  <p className="text-sm text-muted-foreground">{bboxData.maxLng.toFixed(6)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Минимальная широта:</label>
+                  <p className="text-sm text-muted-foreground">{bboxData.minLat.toFixed(6)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Максимальная широта:</label>
+                  <p className="text-sm text-muted-foreground">{bboxData.maxLat.toFixed(6)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       <main className="absolute top-14 left-0 right-0 bottom-0">
         <div className="absolute left-0 top-0 bottom-0 z-10">
           <LeftPanel
@@ -588,27 +646,49 @@ export default function App() {
                 selectedAttributeRow={selectedAttributeRow}
                 onAttributeRowSelect={handleAttributeRowSelect}
                 onZoomToFeature={(row, type) => {
+                  console.log('onZoomToFeature called with row:', row, 'type:', type);
                   if (mapRef.current && row) {
                     const map = mapRef.current.getMap();
                     const layerName = type === 'points' ? 'gdx2.stp' : type === 'lines' ? 'gdx2.stl' : 'gdx2.sta';
+                    const sourceId = layerName;
+                    const sourceLayer = layerName.split('.')[1];
 
-                    if (type === 'lines') {
-                      // For lines, get all features in the layer and calculate combined bbox
-                      const allFeatures = map.queryRenderedFeatures(undefined, {
-                        layers: [layerName]
+                    const features = map.querySourceFeatures(sourceId, {
+                      sourceLayer: sourceLayer,
+                      filter: ['==', 'id', row.id]
+                    });
+
+                    console.log('Querying source:', sourceId, 'sourceLayer:', sourceLayer, 'filter:', ['==', 'id', row.id]);
+                    console.log('Found features for zoom:', features.length);
+                    if (features.length === 0) {
+                      // Try alternative query without sourceLayer
+                      console.log('Trying query without sourceLayer...');
+                      const altFeatures = map.querySourceFeatures(sourceId, {
+                        filter: ['==', 'id', row.id]
                       });
-                      if (allFeatures.length > 0) {
-                        // Create a FeatureCollection from all features
-                        const featureCollection = {
-                          type: 'FeatureCollection' as const,
-                          features: allFeatures.map((f: any) => ({
-                            type: 'Feature' as const,
-                            geometry: f.geometry,
-                            properties: f.properties
-                          }))
-                        };
-                        const bboxCoords = bbox(featureCollection as any);
+                      console.log('Alternative query found features:', altFeatures.length);
+                      if (altFeatures.length > 0) {
+                        features.splice(0, features.length, ...altFeatures);
+                      }
+                    }
+                    if (features.length > 0) {
+                      const feature = features[0];
+                      const geometry = feature.geometry as any;
+                      console.log('Object coordinates:', geometry.coordinates);
+
+                      if (type === 'points') {
+                        const coords = geometry.coordinates as [number, number];
+                        console.log('Flying to point:', coords);
+                        map.flyTo({
+                          center: coords,
+                          zoom: 12,
+                          duration: 1000
+                        });
+                      } else {
+                        // For lines and polygons, use Turf.js bbox for accurate bounding box calculation
+                        const bboxCoords = bbox(geometry);
                         const [minLng, minLat, maxLng, maxLat] = bboxCoords;
+                        console.log('Calculated bbox:', bboxCoords);
 
                         map.fitBounds([
                           [minLng, minLat],
@@ -619,41 +699,11 @@ export default function App() {
                         });
                       }
                     } else {
-                      // For points and polygons, zoom to the specific feature
-                      const features = map.queryRenderedFeatures(undefined, {
-                        layers: [layerName],
-                        filter: ['==', 'id', row.id]
-                      });
-                      if (features.length > 0) {
-                        const feature = features[0];
-                        const coordinates = feature.geometry.coordinates;
-                        if (coordinates) {
-                          if (type === 'points') {
-                            const center = coordinates as [number, number];
-                            map.flyTo({
-                              center: center,
-                              zoom: 12,
-                              duration: 1000
-                            });
-                          } else {
-                            // Use Turf.js bbox for accurate bounding box calculation
-                            const geometry = feature.geometry as any;
-                            const bboxCoords = bbox(geometry);
-                            const [minLng, minLat, maxLng, maxLat] = bboxCoords;
-
-                            map.fitBounds([
-                              [minLng, minLat],
-                              [maxLng, maxLat]
-                            ], {
-                              padding: 50,
-                              duration: 1000
-                            });
-                          }
-                        }
-                      }
+                      console.log('No features found for zoom');
                     }
                   }
                 }}
+                onShowBbox={handleShowBbox}
                 onFilterToFeature={handleFilterToFeature}
                 onClearFilter={handleClearFilter}
                 filteredFeature={filteredFeature}

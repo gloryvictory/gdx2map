@@ -75,6 +75,7 @@ export const lu_labels_Layer: SymbolLayerSpecification = {
     'text-halo-color': '#ffffff',
     'text-halo-width': 1,
   },
+  // Note: glyphs property should be set in the map style, not in the layer
 };
 
 export const layer_name_sta: string = 'sta';
@@ -135,7 +136,7 @@ export const stp_Layer: CircleLayerSpecification = {
 export const layersConfig: Record<string, LayerConfig> = {
   field: { source: fieldSource, layer: fieldLayer },
   lu: { source: luSource, layer: luLayer },
-  lu_labels: { source: luSource, layer: lu_labels_Layer },
+  // lu_labels: { source: luSource, layer: lu_labels_Layer }, // Removed due to glyphs requirement
   sta: { source: sta_Source, layer: sta_Layer },
   stl: { source: stl_Source, layer: stl_Layer },
   stp: { source: stp_Source, layer: stp_Layer },
