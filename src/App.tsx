@@ -21,6 +21,7 @@ import { ALL_BASEMAPS } from "./lib/basemaps";
 import { computeCoordinatesBbox } from "./lib/utils";
 import bbox from "@turf/bbox";
 import { TILE_SERVER_URL } from "./config";
+import { ReportCardDialog } from "./components/ui/ReportCardDialog";
 import type {
   Layer,
   ReportRow,
@@ -85,13 +86,15 @@ export default function App() {
     useState<FilteredFeature | null>(null);
   const [showRectangleSelection, setShowRectangleSelection] = useState(false);
   const [showBboxDialog, setShowBboxDialog] = useState(false);
+  const [showReportCardDialog, setShowReportCardDialog] = useState(false);
+  const [reportCardData, setReportCardData] = useState<{row: any, type: 'points' | 'lines' | 'polygons'} | null>(null);
   const [bboxData, setBboxData] = useState<{
     minLng: number;
     minLat: number;
     maxLng: number;
     maxLat: number;
   } | null>(null);
-  const mapRef = useRef<any>(null);
+ const mapRef = useRef<any>(null);
 
   useEffect(() => {
     fetch(`${TILE_SERVER_URL}/catalog`)
@@ -327,8 +330,7 @@ export default function App() {
               properties: f.properties,
             })),
           };
-          const bboxCoords = bbox(featureCollection as any);
-          const [minLng, minLat, maxLng, maxLat] = bboxCoords;
+          const [minLng, minLat, maxLng, maxLat] = bbox(featureCollection as any);
           map.fitBounds(
             [
               [minLng, minLat],
@@ -336,7 +338,7 @@ export default function App() {
             ],
             {
               padding: 50,
-              duration: 1000,
+              duration: 100,
             },
           );
         }
@@ -386,9 +388,14 @@ export default function App() {
       if (features.length > 0) {
         const feature = features[0];
         const geometry = feature.geometry as any;
-        const bboxCoords = bbox(geometry);
-        const [minLng, minLat, maxLng, maxLat] = bboxCoords;
-        console.log("Bbox coords:", bboxCoords);
+        const featureForBbox = {
+          type: 'Feature' as const,
+          properties: {},
+          geometry: geometry
+        };
+        
+        const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+        console.log("Bbox coords:", [minLng, minLat, maxLng, maxLat]);
         setBboxData({ minLng, minLat, maxLng, maxLat });
         setShowBboxDialog(true);
       }
@@ -418,7 +425,7 @@ export default function App() {
       setVisibleLayers((prev) => new Set([...prev, layerName]));
 
       // Always zoom to the feature when selecting
-      setTimeout(() => {
+      const zoomToFeature = () => {
         if (mapRef.current && row) {
           const map = mapRef.current.getMap();
           // Query rendered features instead of source features for better coordinate access
@@ -435,12 +442,18 @@ export default function App() {
           if (features.length > 0) {
             const feature = features[0];
             const geometry = feature.geometry as any;
-            const bboxCoords = bbox(geometry);
-            const [minLng, minLat, maxLng, maxLat] = bboxCoords;
             if (type === "points") {
               const center = geometry.coordinates as [number, number];
               map.flyTo({ center, zoom: 12, duration: 1000 });
             } else {
+              // For lines and polygons, use Turf.js bbox for accurate bounding box calculation
+              const featureForBbox = {
+                type: 'Feature' as const,
+                properties: {},
+                geometry: geometry
+              };
+              
+              const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
               map.fitBounds(
                 [
                   [minLng, minLat],
@@ -451,33 +464,12 @@ export default function App() {
             }
           } else {
             // If no features found, try again after a longer delay (maybe layer is still loading)
-            setTimeout(() => {
-              const featuresRetry = map.queryRenderedFeatures(undefined, {
-                layers: [layerName],
-                filter: ["==", "id", row.id],
-              });
-              if (featuresRetry.length > 0) {
-                const feature = featuresRetry[0];
-                const geometry = feature.geometry as any;
-                const bboxCoords = bbox(geometry);
-                const [minLng, minLat, maxLng, maxLat] = bboxCoords;
-                if (type === "points") {
-                  const center = geometry.coordinates as [number, number];
-                  map.flyTo({ center, zoom: 12, duration: 1000 });
-                } else {
-                  map.fitBounds(
-                    [
-                      [minLng, minLat],
-                      [maxLng, maxLat],
-                    ],
-                    { padding: 80, duration: 1000 },
-                  );
-                }
-              }
-            }, 500);
+            setTimeout(zoomToFeature, 200);
           }
         }
-      }, 100); // Small delay to ensure state updates are processed
+      };
+      
+      setTimeout(zoomToFeature, 10); // Small delay to ensure state updates are processed
     }
   };
 
@@ -531,6 +523,14 @@ export default function App() {
           )}
         </DialogContent>
       </Dialog>
+      {reportCardData && reportCardData.row && (
+        <ReportCardDialog
+          open={showReportCardDialog}
+          onOpenChange={setShowReportCardDialog}
+          rowData={reportCardData.row}
+          type={reportCardData.type || 'points'}
+        />
+      )}
       <main className="absolute top-14 left-0 right-0 bottom-0">
         <div className="absolute left-0 top-0 bottom-0 z-10">
           <LeftPanel
@@ -815,9 +815,14 @@ export default function App() {
                         });
                       } else {
                         // For lines and polygons, use Turf.js bbox for accurate bounding box calculation
-                        const bboxCoords = bbox(geometry);
-                        const [minLng, minLat, maxLng, maxLat] = bboxCoords;
-                        console.log("Calculated bbox:", bboxCoords);
+                        const featureForBbox = {
+                          type: 'Feature' as const,
+                          properties: {},
+                          geometry: geometry
+                        };
+                        
+                        const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+                        console.log("Calculated bbox:", [minLng, minLat, maxLng, maxLat]);
 
                         map.fitBounds(
                           [
@@ -836,6 +841,10 @@ export default function App() {
                   }
                 }}
                 onShowBbox={handleShowBbox}
+                onShowReportCard={(row: ReportRow, type: 'points' | 'lines' | 'polygons') => {
+                  setReportCardData({ row, type });
+                  setShowReportCardDialog(true);
+                }}
                 onFilterToFeature={handleFilterToFeature}
                 onClearFilter={handleClearFilter}
                 filteredFeature={filteredFeature}

@@ -44,6 +44,7 @@ interface AttributesPanelProps {
   onClearFilter: (type: 'points' | 'lines' | 'polygons') => void;
   filteredFeature: FilteredFeature | null;
   onShowBbox: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
+  onShowReportCard?: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
 }
 
 export function AttributesPanel({
@@ -64,7 +65,8 @@ export function AttributesPanel({
   onFilterToFeature,
   onClearFilter,
   filteredFeature,
-  onShowBbox
+  onShowBbox,
+  onShowReportCard
 }: AttributesPanelProps) {
 
   const fieldDescriptions: Record<string, string> = {
@@ -182,13 +184,16 @@ export function AttributesPanel({
             <ContextMenu>
               <ContextMenuTrigger>
                 <AgGridReact
+                  theme="legacy"
                   key={pointsData.length}
                   rowData={pointsData}
                   columnDefs={columns}
-                  defaultColDef={{ flex: 1, minWidth: 100 }}
+                  defaultColDef={{ flex: 1, minWidth: 140, filter: true }}
                   ensureDomOrder
                   suppressNoRowsOverlay={false}
                   rowSelection="single"
+                  rowMultiSelectWithClick={false}
+                  suppressRowClickSelection={false}
                   onRowClicked={(event) => onAttributeRowSelect(event.data, 'points')}
                   getRowClass={(params) => {
                     if (selectedAttributeRow && selectedAttributeRow.type === 'points' && selectedAttributeRow.data.id === params.data.id) {
@@ -233,6 +238,17 @@ export function AttributesPanel({
                   <Square className="w-4 h-4 mr-2" />
                   Показать bbox
                 </ContextMenuItem>
+                {onShowReportCard && (
+                  <ContextMenuItem onClick={() => {
+                    const selectedRow = selectedAttributeRow?.data;
+                    if (selectedRow) {
+                      onShowReportCard(selectedRow, 'points');
+                    }
+                  }}>
+                    <Square className="w-4 h-4 mr-2" />
+                    Показать карточку отчета
+                  </ContextMenuItem>
+                )}
                 <ContextMenuItem onClick={() => {
                   // Get the grid API from the context
                   const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
@@ -309,13 +325,16 @@ export function AttributesPanel({
             <ContextMenu>
               <ContextMenuTrigger>
                 <AgGridReact
+                  theme="legacy"
                   key={linesData.length}
                   rowData={linesData}
                   columnDefs={columns}
-                  defaultColDef={{ flex: 1, minWidth: 100 }}
+                  defaultColDef={{ flex: 1, minWidth: 140, filter: true }}
                   ensureDomOrder
                   suppressNoRowsOverlay={false}
-                  rowSelection={{ mode: 'singleRow' }}
+                  rowSelection="single"
+                  rowMultiSelectWithClick={false}
+                  suppressRowClickSelection={false}
                   onRowClicked={(event) => onAttributeRowSelect(event.data, 'lines')}
                   getRowClass={(params) => {
                     if (selectedAttributeRow && selectedAttributeRow.type === 'lines' && selectedAttributeRow.data.id === params.data.id) {
@@ -360,6 +379,17 @@ export function AttributesPanel({
                   <Square className="w-4 h-4 mr-2" />
                   Показать bbox
                 </ContextMenuItem>
+                {onShowReportCard && (
+                  <ContextMenuItem onClick={() => {
+                    const selectedRow = selectedAttributeRow?.data;
+                    if (selectedRow && onShowReportCard) {
+                      onShowReportCard(selectedRow, 'lines');
+                    }
+                  }}>
+                    <Square className="w-4 h-4 mr-2" />
+                    Показать карточку отчета
+                  </ContextMenuItem>
+                )}
                 <ContextMenuItem onClick={() => {
                   // Get the grid API from the context
                   const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');
@@ -436,13 +466,16 @@ export function AttributesPanel({
             <ContextMenu>
               <ContextMenuTrigger>
                 <AgGridReact
+                  theme="legacy"
                   key={polygonsData.length}
                   rowData={polygonsData}
                   columnDefs={columns}
-                  defaultColDef={{ flex: 1, minWidth: 100 }}
+                  defaultColDef={{ flex: 1, minWidth: 140, filter: true }}
                   ensureDomOrder
                   suppressNoRowsOverlay={false}
                   rowSelection="single"
+                  rowMultiSelectWithClick={false}
+                  suppressRowClickSelection={false}
                   onRowClicked={(event) => onAttributeRowSelect(event.data, 'polygons')}
                   getRowClass={(params) => {
                     if (selectedAttributeRow && selectedAttributeRow.type === 'polygons' && selectedAttributeRow.data.id === params.data.id) {
@@ -487,6 +520,17 @@ export function AttributesPanel({
                   <Square className="w-4 h-4 mr-2" />
                   Показать bbox
                 </ContextMenuItem>
+                {onShowReportCard && (
+                  <ContextMenuItem onClick={() => {
+                    const selectedRow = selectedAttributeRow?.data;
+                    if (selectedRow && onShowReportCard) {
+                      onShowReportCard(selectedRow, 'polygons');
+                    }
+                  }}>
+                    <Square className="w-4 h-4 mr-2" />
+                    Показать карточку отчета
+                  </ContextMenuItem>
+                )}
                 <ContextMenuItem onClick={() => {
                   // Get the grid API from the context
                   const grids = document.querySelectorAll('.ag-theme-alpine .ag-root-wrapper');

@@ -7,6 +7,7 @@ import ReactMapGL, {
   NavigationControl,
   type ViewState,
 } from 'react-map-gl/maplibre';
+import bbox from '@turf/bbox';
 import { layersConfig } from '../layers';
 import type { Layer, Feature, LngLat, BBox, SelectedAttributeRow, FilteredFeature } from '../types';
 
@@ -458,9 +459,73 @@ export const MapView = forwardRef<any, {
 
       // Apply filter to show only the selected feature using == filter
       if (map.getLayer(layerName)) {
-        map.setFilter(layerName, ['==', 'id', filteredFeature.row.id] as any);
+        map.setFilter(layerName, ['==', ['get', 'id'], filteredFeature.row.id] as any);
         map.triggerRepaint();
       }
+
+      // Zoom to the filtered feature - wait for filter to be applied and features to render
+      const zoomToFeature = () => {
+        const features = map.queryRenderedFeatures(undefined, {
+          layers: [layerName],
+          filter: ['==', ['get', 'id'], filteredFeature.row.id] as any
+        });
+        
+        if (features.length > 0) {
+          const feature = features[0];
+          const geometry = feature.geometry as any; // Type assertion to handle different geometry types
+          
+          if (geometry.type === 'Point') {
+            const coords = geometry.coordinates as [number, number];
+            map.flyTo({
+              center: coords,
+              zoom: 12,
+              duration: 1000
+            });
+          } else {
+            // For lines and polygons, use bbox to zoom to the feature
+            try {
+              // Use Turf.js bbox function to calculate bounding box
+              const featureForBbox = {
+                type: 'Feature' as const,
+                properties: {},
+                geometry: geometry
+              };
+              
+              const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+              map.fitBounds([
+                [minLng, minLat],
+                [maxLng, maxLat]
+              ], {
+                padding: 50,
+                duration: 1000
+              });
+            } catch (e) {
+              console.error('Error calculating bbox for feature:', e);
+              // Fallback: try to get center point from first coordinate
+              if (geometry.coordinates && geometry.coordinates.length > 0) {
+                let coords = geometry.coordinates[0];
+                if (Array.isArray(coords) && coords.length > 0 && Array.isArray(coords[0])) {
+                  coords = coords[0]; // Handle nested arrays for polygons
+                }
+                if (Array.isArray(coords) && coords.length >= 2) {
+                  const [lng, lat] = coords as [number, number];
+                  map.flyTo({
+                    center: [lng, lat],
+                    zoom: 10,
+                    duration: 1000
+                  });
+                }
+              }
+            }
+          }
+        } else {
+          // If features are not yet rendered, try again after a short delay
+          setTimeout(zoomToFeature, 200);
+        }
+      };
+      
+      // Start the zoom process after a small delay to ensure filter is applied
+      setTimeout(zoomToFeature, 10);
     } else {
       // Clear filter and show all layers
       const allLayerNames = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta', 'gdx2.lu', 'gdx2.field'];
