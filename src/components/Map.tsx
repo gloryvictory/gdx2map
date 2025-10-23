@@ -428,11 +428,14 @@ export const MapView = forwardRef<any, {
 
     // Zoom to selected feature
     const coords = (selectedFeature.geometry as any).coordinates as [number, number];
-    map.flyTo({
-      center: [coords[0], coords[1]],
-      zoom: 12,
-      duration: 1000
-    });
+    // Check if coordinates are valid numbers
+    if (coords && coords.length >= 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+      map.flyTo({
+        center: [coords[0], coords[1]],
+        zoom: 12,
+        duration: 1000
+      });
+    }
   }, [selectedFeature, mapLoaded]);
 
   useEffect(() => {
@@ -476,11 +479,14 @@ export const MapView = forwardRef<any, {
           
           if (geometry.type === 'Point') {
             const coords = geometry.coordinates as [number, number];
-            map.flyTo({
-              center: coords,
-              zoom: 12,
-              duration: 1000
-            });
+            // Check if coordinates are valid numbers
+            if (coords && coords.length >= 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+              map.flyTo({
+                center: coords,
+                zoom: 12,
+                duration: 1000
+              });
+            }
           } else {
             // For lines and polygons, use bbox to zoom to the feature
             try {
@@ -492,13 +498,16 @@ export const MapView = forwardRef<any, {
               };
               
               const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-              map.fitBounds([
-                [minLng, minLat],
-                [maxLng, maxLat]
-              ], {
-                padding: 50,
-                duration: 1000
-              });
+              // Check if bbox values are valid numbers
+              if (!isNaN(minLng) && !isNaN(minLat) && !isNaN(maxLng) && !isNaN(maxLat)) {
+                map.fitBounds([
+                  [minLng, minLat],
+                  [maxLng, maxLat]
+                ], {
+                  padding: 50,
+                  duration: 1000
+                });
+              }
             } catch (e) {
               console.error('Error calculating bbox for feature:', e);
               // Fallback: try to get center point from first coordinate
@@ -509,11 +518,14 @@ export const MapView = forwardRef<any, {
                 }
                 if (Array.isArray(coords) && coords.length >= 2) {
                   const [lng, lat] = coords as [number, number];
-                  map.flyTo({
-                    center: [lng, lat],
-                    zoom: 10,
-                    duration: 1000
-                  });
+                  // Check if coordinates are valid numbers
+                  if (!isNaN(lng) && !isNaN(lat)) {
+                    map.flyTo({
+                      center: [lng, lat],
+                      zoom: 10,
+                      duration: 1000
+                    });
+                  }
                 }
               }
             }

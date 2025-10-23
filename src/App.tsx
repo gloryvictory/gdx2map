@@ -7,9 +7,11 @@ import { LeftPanel } from "./components/LeftPanel";
 import { AttributesPanel } from "./components/AttributesPanel";
 import { LegendPanel } from "./components/LegendPanel";
 import { BottomPanel } from "./components/BottomPanel";
+import { LuSelectPanel } from "./components/LuSelectPanel";
 import { Label } from "./components/ui/label";
 import { RadioGroup, RadioGroupItem } from "./components/ui/radio-group";
 import { Checkbox } from "./components/ui/checkbox";
+import { LuSelectButton } from "./components/ui/LuSelectButton";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +20,6 @@ import {
 } from "./components/ui/dialog";
 import { LIGHT_MAP_STYLE } from "./constants/mapStyles";
 import { ALL_BASEMAPS } from "./lib/basemaps";
-import { computeCoordinatesBbox } from "./lib/utils";
 import bbox from "@turf/bbox";
 import { TILE_SERVER_URL } from "./config";
 import { ReportCardDialog } from "./components/ui/ReportCardDialog";
@@ -43,6 +44,9 @@ export default function App() {
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
   const [hoveredFeatures, setHoveredFeatures] = useState<Feature[]>([]);
   const [clickedFeatures, setClickedFeatures] = useState<Feature[]>([]);
+  const [showLuSelect, setShowLuSelect] = useState(false);
+  const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
+  const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
   const [marker, setMarker] = useState<LngLat | null>(null);
   const [showFeatureTable, setShowFeatureTable] = useState(false);
   const [activeInfoMode, setActiveInfoMode] = useState<
@@ -51,7 +55,7 @@ export default function App() {
   const [showMarkerInfo, setShowMarkerInfo] = useState(false);
   const [showMarkerAttributes, setShowMarkerAttributes] = useState(false);
   const [activeTool, setActiveTool] = useState<
-    "info" | "attributes" | "rectangle" | null
+    "info" | "hover-info" | "attributes" | "rectangle" | "lu-select" | null
   >(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [attributesPointsData, setAttributesPointsData] = useState<ReportRow[]>(
@@ -135,19 +139,47 @@ export default function App() {
   }, [basemapKey]);
 
   const handleLayersClick = () => {
-    setShowLayers((prev) => !prev);
+    if (showLayers) {
+      setShowLayers(false);
+    } else {
+      setShowLayers(true);
+      setShowBaseMaps(false);
+      setShowLegend(false);
+      setShowAttributes(false);
+    }
   };
 
   const handleBaseMapsClick = () => {
-    setShowBaseMaps((prev) => !prev);
+    if (showBaseMaps) {
+      setShowBaseMaps(false);
+    } else {
+      setShowBaseMaps(true);
+      setShowLayers(false);
+      setShowLegend(false);
+      setShowAttributes(false);
+    }
   };
 
   const handleAttributesClick = () => {
-    setShowAttributes((prev) => !prev);
+    if (showAttributes) {
+      setShowAttributes(false);
+    } else {
+      setShowAttributes(true);
+      setShowLayers(false);
+      setShowBaseMaps(false);
+      setShowLegend(false);
+    }
   };
 
   const handleLegendClick = () => {
-    setShowLegend((prev) => !prev);
+    if (showLegend) {
+      setShowLegend(false);
+    } else {
+      setShowLegend(true);
+      setShowLayers(false);
+      setShowBaseMaps(false);
+      setShowAttributes(false);
+    }
   };
 
   const handleLayerToggle = (layerName: string, checked: boolean) => {
@@ -166,6 +198,93 @@ export default function App() {
     setBasemapKey(key);
     setShowBaseMaps(false);
   };
+
+  // Handle mouse move to update hovered feature when in info mode
+  useEffect(() => {
+    if (activeInfoMode && hoveredFeatures.length > 0) {
+      // When in info mode, set the first hovered feature as the hovered feature for highlighting
+      const firstHoveredFeature = hoveredFeatures[0];
+      setHoveredFeature(firstHoveredFeature);
+      
+      // If we have a selected feature and we're hovering over a different feature, clear the selection
+      if (selectedFeature && selectedFeature.properties.id !== firstHoveredFeature.properties.id) {
+        setSelectedFeature(null);
+        // Update attributes data to show the hovered feature instead
+        const points: ReportRow[] = [];
+        const lines: ReportRow[] = [];
+        const polygons: ReportRow[] = [];
+
+        hoveredFeatures.forEach((feature) => {
+          const type = feature.layer.id.split(".")[1];
+          if (type === "stp") {
+            points.push(feature.properties);
+          } else if (type === "stl") {
+            lines.push(feature.properties);
+          } else if (type === "sta") {
+            polygons.push(feature.properties);
+          }
+        });
+
+        setAttributesPointsData(points);
+        setAttributesLinesData(lines);
+        setAttributesPolygonsData(polygons);
+      } else if (!selectedFeature) {
+        // If no feature is selected, show the hovered features in the panel
+        const points: ReportRow[] = [];
+        const lines: ReportRow[] = [];
+        const polygons: ReportRow[] = [];
+
+        hoveredFeatures.forEach((feature) => {
+          const type = feature.layer.id.split(".")[1];
+          if (type === "stp") {
+            points.push(feature.properties);
+          } else if (type === "stl") {
+            lines.push(feature.properties);
+          } else if (type === "sta") {
+            polygons.push(feature.properties);
+          }
+        });
+
+        setAttributesPointsData(points);
+        setAttributesLinesData(lines);
+        setAttributesPolygonsData(polygons);
+      }
+    } else if (activeInfoMode && hoveredFeatures.length === 0 && selectedFeature) {
+      // When in info mode but not hovering over any features, but we have a selected feature
+      // Keep showing the selected feature's data in the panel
+      const points: ReportRow[] = [];
+      const lines: ReportRow[] = [];
+      const polygons: ReportRow[] = [];
+
+      // Only add the selected feature to the appropriate array
+      const type = selectedFeature.layer.id.split(".")[1];
+      if (type === "stp") {
+        points.push(selectedFeature.properties);
+      } else if (type === "stl") {
+        lines.push(selectedFeature.properties);
+      } else if (type === "sta") {
+        polygons.push(selectedFeature.properties);
+      }
+
+      setAttributesPointsData(points);
+      setAttributesLinesData(lines);
+      setAttributesPolygonsData(polygons);
+      // Only set hoveredFeature to null if it's different from selectedFeature
+      if (hoveredFeature?.properties.id !== selectedFeature.properties.id) {
+        setHoveredFeature(null);
+      }
+    } else if (activeInfoMode && hoveredFeatures.length === 0 && !selectedFeature) {
+      // When in info mode but not hovering over any features and no selected feature
+      setAttributesPointsData([]);
+      setAttributesLinesData([]);
+      setAttributesPolygonsData([]);
+      // Only set hoveredFeature to null if there's no selected feature
+      if (hoveredFeature && !selectedFeature) {
+        setHoveredFeature(null);
+      }
+    }
+ }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature]);
+
 
   const updateAttributesData = (features: Feature[]) => {
     const points: ReportRow[] = [];
@@ -246,11 +365,14 @@ export default function App() {
       // In a real app, you'd calculate bounds from the feature geometry
       if (!feature) return;
       const coords = (feature.geometry as any).coordinates as [number, number];
-      map.flyTo({
-        center: [coords[0], coords[1]],
-        zoom: 12,
-        duration: 1000,
-      });
+      // Check if coordinates are valid numbers
+      if (coords && coords.length >= 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+        map.flyTo({
+          center: [coords[0], coords[1]],
+          zoom: 12,
+          duration: 1000,
+        });
+      }
     }
   };
 
@@ -265,6 +387,7 @@ export default function App() {
       setShowMarkerAttributes(true);
       setShowMarkerInfo(false);
       setShowRectangleSelection(false);
+      setShowLuSelect(false);
       setActiveInfoMode(null);
       // Clear any existing clicked features to allow fresh selection
       setClickedFeatures([]);
@@ -273,10 +396,11 @@ export default function App() {
       updateAttributesData([]);
       setShowAttributes(true);
     }
-  };
+ };
 
-  // Handle map click when marker attributes mode is active
-  const handleMapClickWithMarkerAttributes = (
+
+ // Handle map click when marker attributes mode is active
+ const handleMapClickWithMarkerAttributes = (
     features: Feature[],
     lngLat: LngLat,
   ) => {
@@ -286,6 +410,21 @@ export default function App() {
       updateAttributesData(features);
       setMarker(lngLat);
       setShowAttributes(true);
+    } else if (activeInfoMode) {
+      // When info mode is active, clicking on a feature should select it
+      if (features.length > 0) {
+        // Select the first feature from the clicked features
+        setSelectedFeature(features[0]);
+        // Set it as the hovered feature as well for highlighting
+        setHoveredFeature(features[0]);
+        // Update attributes data to show only the selected feature
+        updateAttributesData([features[0]]);
+        setShowAttributes(true);
+      } else {
+        // If clicked on empty space, deselect any selected feature
+        setSelectedFeature(null);
+        setHoveredFeature(null);
+      }
     } else {
       // Default behavior
       setClickedFeatures(features);
@@ -444,7 +583,10 @@ export default function App() {
             const geometry = feature.geometry as any;
             if (type === "points") {
               const center = geometry.coordinates as [number, number];
-              map.flyTo({ center, zoom: 12, duration: 1000 });
+              // Check if coordinates are valid numbers
+              if (center && center.length >= 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+                map.flyTo({ center, zoom: 12, duration: 1000 });
+              }
             } else {
               // For lines and polygons, use Turf.js bbox for accurate bounding box calculation
               const featureForBbox = {
@@ -454,13 +596,16 @@ export default function App() {
               };
               
               const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-              map.fitBounds(
-                [
-                  [minLng, minLat],
-                  [maxLng, maxLat],
-                ],
-                { padding: 80, duration: 1000 },
-              );
+              // Check if bbox values are valid numbers
+              if (!isNaN(minLng) && !isNaN(minLat) && !isNaN(maxLng) && !isNaN(maxLat)) {
+                map.fitBounds(
+                  [
+                    [minLng, minLat],
+                    [maxLng, maxLat],
+                  ],
+                  { padding: 80, duration: 1000 },
+                );
+              }
             }
           } else {
             // If no features found, try again after a longer delay (maybe layer is still loading)
@@ -595,14 +740,26 @@ export default function App() {
           >
             <Panel defaultSize={showAttributes ? 60 : 80} minSize={30}>
               <RightPanel
-                hoveredFeatures={hoveredFeatures}
+                hoveredFeatures={selectedFeature && hoveredFeatures.length === 0 && activeInfoMode ? [selectedFeature] : hoveredFeatures}
                 clickedFeatures={clickedFeatures}
                 showFeatureTable={showFeatureTable}
                 onToggleFeatureTable={setShowFeatureTable}
                 activeInfoMode={activeInfoMode}
                 onSetActiveInfoMode={(mode) => {
                   setActiveInfoMode(mode);
-                  if (mode) setShowMarkerInfo(false);
+                  // Only hide marker info if it's currently shown
+                  if (mode && showMarkerInfo) {
+                    setShowMarkerInfo(false);
+                  }
+                  // Also deactivate other tools when activating info mode
+                  if (mode) {
+                    setShowMarkerAttributes(false);
+                    setShowRectangleSelection(false);
+                    setShowLuSelect(false);
+                    setActiveTool("hover-info");
+                  } else if (!mode && activeTool === "hover-info") {
+                    setActiveTool(null);
+                  }
                 }}
                 showMarkerInfo={showMarkerInfo}
                 onToggleMarkerInfo={(show) => {
@@ -611,6 +768,7 @@ export default function App() {
                     setShowMarkerInfo(true);
                     setShowMarkerAttributes(false);
                     setShowRectangleSelection(false);
+                    setShowLuSelect(false);
                     setActiveInfoMode(null);
                     // Clear attributes data and hide attributes panel
                     setAttributesPointsData([]);
@@ -624,12 +782,58 @@ export default function App() {
                     setHoveredFeature(null);
                     setClickedFeatures([]);
                     setMarker(null);
+                    // Also clear any highlighting
+                    setHighlightedPoints(new Set());
+                    setHighlightedLines(new Set());
+                    setHighlightedPolygons(new Set());
                   } else {
-                    if (activeTool === "info") setActiveTool(null);
+                    if (activeTool === "info" || activeTool === "hover-info") setActiveTool(null);
                     setShowMarkerInfo(false);
                   }
                 }}
                 showMarkerAttributes={showMarkerAttributes}
+                showLuSelect={showLuSelect}
+                onToggleLuSelect={(show) => {
+                  if (show) {
+                    setActiveTool("lu-select");
+                    setShowLuSelect(true);
+                    setShowMarkerInfo(false);
+                    setShowMarkerAttributes(false);
+                    setShowRectangleSelection(false);
+                    setActiveInfoMode(null);
+                    // Clear any existing clicked features to allow fresh selection
+                    setClickedFeatures([]);
+                    // Load LU features if not already loaded
+                    if (luFeatures.length === 0 && visibleLayers.has("lu")) {
+                      // This would query the LU layer features from the map
+                      if (mapRef.current) {
+                        const map = mapRef.current.getMap();
+                        if (map) {
+                          try {
+                            const luLayerFeatures = map.querySourceFeatures("lu_source", {
+                              sourceLayer: "lu"
+                            }) as Feature[];
+                            
+                            setLuFeatures(luLayerFeatures);
+                          } catch (e) {
+                            console.error("Error loading LU features:", e);
+                            // In case of error, we can try to query all features from the LU layer
+                            const features = map.queryRenderedFeatures({ layers: ["gdx2.lu"] }) as Feature[];
+                            
+                            setLuFeatures(features);
+                          }
+                        }
+                      }
+                    }
+                  } else {
+                    if (activeTool === "lu-select") setActiveTool(null);
+                    setShowLuSelect(false);
+                    setSelectedLu(null);
+                  }
+                }}
+                luFeatures={luFeatures}
+                selectedLu={selectedLu}
+                onLuSelect={setSelectedLu}
                 showAttributes={showAttributes}
                 onToggleAttributes={(show) => {
                   if (show) {
@@ -649,12 +853,14 @@ export default function App() {
                     setShowRectangleSelection(true);
                     setShowMarkerInfo(false);
                     setShowMarkerAttributes(false);
+                    setShowLuSelect(false);
                     setActiveInfoMode(null);
                   } else {
                     if (activeTool === "rectangle") setActiveTool(null);
                     setShowRectangleSelection(false);
                   }
                 }}
+                visibleLayers={visibleLayers}
               >
                 <MapView
                   ref={mapRef}

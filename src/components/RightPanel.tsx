@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from './ui/tooltip';
 import { FeatureTable } from './map/FeatureTable';
+import { LuSelectPanel } from './LuSelectPanel';
 
 import type { Feature, SelectedAttributeRow } from '../types';
 
@@ -24,6 +25,11 @@ interface RightPanelProps {
   showMarkerInfo: boolean;
   onToggleMarkerInfo: (show: boolean) => void;
   showMarkerAttributes: boolean;
+  showLuSelect: boolean;
+  onToggleLuSelect: (show: boolean) => void;
+  luFeatures: Feature[];
+  selectedLu: Feature | null;
+  onLuSelect: (lu: Feature | null) => void;
   showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
   selectedFeature: Feature | null;
@@ -32,6 +38,7 @@ interface RightPanelProps {
   onMarkerAttributesClick: () => void;
   showRectangleSelection: boolean;
   onSetRectangleSelection: (enabled: boolean) => void;
+  visibleLayers: Set<string>;
 }
 
 function exportToExcel(features: Feature[]) {
@@ -107,9 +114,9 @@ function exportToExcel(features: Feature[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers }: RightPanelProps) {
 
-  const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0);
+  const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0) || showLuSelect;
 // isInfoPanelOpen ? 60 : 80
   return (
     <PanelGroup direction="horizontal" key={isInfoPanelOpen ? 'show' : 'hide'}>
@@ -191,6 +198,18 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                   <p className="text-muted-foreground">Наведите курсор на объекты слоев для просмотра атрибутов</p>
                 )}
               </div>
+            </div>
+          )}
+          {showLuSelect && (
+            <div className="flex-1 flex flex-col">
+              <LuSelectPanel
+                luFeatures={luFeatures}
+                selectedLu={selectedLu}
+                onLuSelect={onLuSelect}
+                visibleLayers={visibleLayers}
+                onFeatureSelect={onFeatureSelect}
+                onFeatureHover={onFeatureHover}
+              />
             </div>
           )}
         </div>
@@ -344,9 +363,35 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                 <p>Выбрать прямоугольником</p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-        </div>
-      </Panel>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showLuSelect ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    if (showLuSelect) {
+                      onToggleLuSelect(false);
+                    } else {
+                      onToggleLuSelect(true);
+                      // Deactivate other modes when activating LU selection
+                      onSetActiveInfoMode(null);
+                      onToggleMarkerInfo(false);
+                      onSetRectangleSelection(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
+                  className="w-10 h-10"
+                >
+                  <MapPin className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Выбрать по ЛУ</p>
+              </TooltipContent>
+            </Tooltip>
+           </TooltipProvider>
+         </div>
+       </Panel>
     </PanelGroup>
   );
 }
