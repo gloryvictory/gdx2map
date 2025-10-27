@@ -47,6 +47,7 @@ export default function App() {
   const [showLuSelect, setShowLuSelect] = useState(false);
   const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
   const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
+  const [luMarker, setLuMarker] = useState<LngLat | null>(null);
   const [marker, setMarker] = useState<LngLat | null>(null);
   const [showFeatureTable, setShowFeatureTable] = useState(false);
   const [activeInfoMode, setActiveInfoMode] = useState<
@@ -283,7 +284,7 @@ export default function App() {
         setHoveredFeature(null);
       }
     }
- }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature]);
+ }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedLu]);
 
 
   const updateAttributesData = (features: Feature[]) => {
@@ -358,22 +359,6 @@ export default function App() {
   const handleFeatureSelect = (feature: Feature | null) => {
     setSelectedFeature(feature);
     setSelectedAttributeRow(null); // Clear attribute selection when selecting feature
-    // Zoom to feature
-    if (mapRef.current) {
-      const map = mapRef.current.getMap();
-      // For simplicity, zoom to a fixed level and center on the feature
-      // In a real app, you'd calculate bounds from the feature geometry
-      if (!feature) return;
-      const coords = (feature.geometry as any).coordinates as [number, number];
-      // Check if coordinates are valid numbers
-      if (coords && coords.length >= 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
-        map.flyTo({
-          center: [coords[0], coords[1]],
-          zoom: 12,
-          duration: 1000,
-        });
-      }
-    }
   };
 
   const handleMarkerAttributesClick = () => {
@@ -433,6 +418,35 @@ export default function App() {
       }
     }
   };
+
+  // Load LU features when LU layer becomes visible and we're in LU select mode
+  useEffect(() => {
+    if (showLuSelect && visibleLayers.has("lu") && luFeatures.length === 0) {
+      // Load LU features with a delay to ensure map is ready
+      const loadLuFeatures = () => {
+        if (mapRef.current) {
+          const map = mapRef.current.getMap();
+          if (map && map.isStyleLoaded()) {
+            try {
+              // Query all rendered features from the LU layer
+              const features = map.queryRenderedFeatures({ layers: ["gdx2.lu"] }) as Feature[];
+              console.log("Loaded LU features:", features.length);
+              setLuFeatures(features);
+            } catch (e) {
+              console.error("Error loading LU features:", e);
+            }
+          } else {
+            // If map is not ready, try again after a short delay
+            setTimeout(loadLuFeatures, 200);
+          }
+        }
+      };
+      
+      // Start loading after a small delay
+      const timer = setTimeout(loadLuFeatures, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showLuSelect, visibleLayers, luFeatures.length]);
 
   const handleFilterToFeature = (
     row: ReportRow,
@@ -804,26 +818,10 @@ export default function App() {
                     // Clear any existing clicked features to allow fresh selection
                     setClickedFeatures([]);
                     // Load LU features if not already loaded
+                    // Feature loading is now handled by useEffect hook
                     if (luFeatures.length === 0 && visibleLayers.has("lu")) {
-                      // This would query the LU layer features from the map
-                      if (mapRef.current) {
-                        const map = mapRef.current.getMap();
-                        if (map) {
-                          try {
-                            const luLayerFeatures = map.querySourceFeatures("lu_source", {
-                              sourceLayer: "lu"
-                            }) as Feature[];
-                            
-                            setLuFeatures(luLayerFeatures);
-                          } catch (e) {
-                            console.error("Error loading LU features:", e);
-                            // In case of error, we can try to query all features from the LU layer
-                            const features = map.queryRenderedFeatures({ layers: ["gdx2.lu"] }) as Feature[];
-                            
-                            setLuFeatures(features);
-                          }
-                        }
-                      }
+                      // The useEffect hook will handle loading the features
+                      console.log("LU features will be loaded by useEffect hook");
                     }
                   } else {
                     if (activeTool === "lu-select") setActiveTool(null);
@@ -833,7 +831,87 @@ export default function App() {
                 }}
                 luFeatures={luFeatures}
                 selectedLu={selectedLu}
-                onLuSelect={setSelectedLu}
+                onLuSelect={(lu) => {
+                  setSelectedLu(lu);
+                  // When LU is selected, also select it as a feature to trigger highlighting
+                  setSelectedFeature(lu);
+                  setSelectedAttributeRow(null);
+                  
+                  // Additionally, zoom to the LU using its bbox if selected
+                  if (lu && mapRef.current && lu.geometry) {
+                    const map = mapRef.current.getMap();
+                    const geometry = lu.geometry;
+                    
+                    // Create a feature for bbox calculation
+                    const featureForBbox = {
+                      type: 'Feature' as const,
+                      properties: {},
+                      geometry: geometry
+                    };
+                    
+                    // Calculate bbox
+                    const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+                    
+                    // Zoom to the bbox
+                    map.fitBounds([
+                      [minLng, minLat],
+                      [maxLng, maxLat]
+                    ], {
+                      padding: 50,
+                      duration: 1000
+                    });
+                    
+                    // Query features within the LU area and populate attribute tables
+                    setTimeout(() => {
+                      if (mapRef.current) {
+                        const map = mapRef.current.getMap();
+                        
+                        // Query features from sta, stl, stp layers
+                        const staFeatures = map.queryRenderedFeatures({ layers: ['gdx2.sta'] });
+                        const stlFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stl'] });
+                        const stpFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stp'] });
+                        
+                        // Filter features that intersect with the selected LU
+                        const luBbox = bbox(featureForBbox);
+                        
+                        // For simplicity, we'll include all features that are within the LU bbox
+                        // A more accurate implementation would check for actual intersection
+                        const filterFeaturesInLu = (features: any[]) => {
+                          return features.filter((feature: any) => {
+                            const featureBbox = bbox({
+                              type: 'Feature',
+                              properties: {},
+                              geometry: feature.geometry
+                            });
+                            
+                            // Check if feature bbox intersects with LU bbox
+                            return !(featureBbox[2] < luBbox[0] ||
+                                   featureBbox[0] > luBbox[2] ||
+                                   featureBbox[3] < luBbox[1] ||
+                                   featureBbox[1] > luBbox[3]);
+                          });
+                        };
+                        
+                        const filteredSta = filterFeaturesInLu(staFeatures);
+                        const filteredStl = filterFeaturesInLu(stlFeatures);
+                        const filteredStp = filterFeaturesInLu(stpFeatures);
+                        
+                        // Update attribute tables
+                        setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
+                        setAttributesLinesData(filteredStl.map((f: any) => f.properties));
+                        setAttributesPointsData(filteredStp.map((f: any) => f.properties));
+                        
+                        // Show attributes panel
+                        setShowAttributes(true);
+                      }
+                    }, 100);
+                  } else {
+                    // If lu is null, clear the attribute tables
+                    setAttributesPolygonsData([]);
+                    setAttributesLinesData([]);
+                    setAttributesPointsData([]);
+                  }
+                }}
                 showAttributes={showAttributes}
                 onToggleAttributes={(show) => {
                   if (show) {
