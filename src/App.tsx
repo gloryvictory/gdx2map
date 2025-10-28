@@ -46,9 +46,9 @@ export default function App() {
   const [clickedFeatures, setClickedFeatures] = useState<Feature[]>([]);
   const [showLuSelect, setShowLuSelect] = useState(false);
   const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
-  const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
   const [luMarker, setLuMarker] = useState<LngLat | null>(null);
   const [marker, setMarker] = useState<LngLat | null>(null);
+  const [previousSelectedLu, setPreviousSelectedLu] = useState<Feature | null>(null);
   const [showFeatureTable, setShowFeatureTable] = useState(false);
   const [activeInfoMode, setActiveInfoMode] = useState<
     "points" | "lines" | "polygons" | null
@@ -284,7 +284,7 @@ export default function App() {
         setHoveredFeature(null);
       }
     }
- }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedLu]);
+ }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature]);
 
 
   const updateAttributesData = (features: Feature[]) => {
@@ -826,87 +826,131 @@ export default function App() {
                   } else {
                     if (activeTool === "lu-select") setActiveTool(null);
                     setShowLuSelect(false);
-                    setSelectedLu(null);
+                    setSelectedFeature(null);
                   }
                 }}
                 luFeatures={luFeatures}
-                selectedLu={selectedLu}
+                selectedLu={selectedFeature}
                 onLuSelect={(lu) => {
-                  setSelectedLu(lu);
-                  // When LU is selected, also select it as a feature to trigger highlighting
-                  setSelectedFeature(lu);
-                  setSelectedAttributeRow(null);
-                  
-                  // Additionally, zoom to the LU using its bbox if selected
-                  if (lu && mapRef.current && lu.geometry) {
-                    const map = mapRef.current.getMap();
-                    const geometry = lu.geometry;
-                    
-                    // Create a feature for bbox calculation
-                    const featureForBbox = {
-                      type: 'Feature' as const,
-                      properties: {},
-                      geometry: geometry
-                    };
-                    
-                    // Calculate bbox
-                    const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-                    
-                    // Zoom to the bbox
-                    map.fitBounds([
-                      [minLng, minLat],
-                      [maxLng, maxLat]
-                    ], {
-                      padding: 50,
-                      duration: 1000
-                    });
-                    
-                    // Query features within the LU area and populate attribute tables
-                    setTimeout(() => {
-                      if (mapRef.current) {
+                  if (lu) {
+                    // Check if this is a marker placement action (same LU selected)
+                    if (selectedFeature && selectedFeature.properties.id === lu.properties.id) {
+                      // Place marker at the center of the LU
+                      const geometry = lu.geometry;
+                      let centerLngLat: LngLat | null = null;
+                      
+                      // Calculate center based on geometry type
+                      if (geometry.type === 'Point') {
+                        centerLngLat = { lng: geometry.coordinates[0], lat: geometry.coordinates[1] };
+                      } else {
+                        // For polygons and other geometries, calculate bbox and use center
+                        const featureForBbox = {
+                          type: 'Feature' as const,
+                          properties: {},
+                          geometry: geometry
+                        };
+                        const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+                        centerLngLat = {
+                          lng: (minLng + maxLng) / 2,
+                          lat: (minLat + maxLat) / 2
+                        };
+                      }
+                      
+                      if (centerLngLat) {
+                        setMarker(centerLngLat);
+                        setShowMarkerInfo(true);
+                        setActiveTool("info");
+                        // Set the marker coordinates as the current marker position
+                        // This will display the marker on the map with the LU name
+                      }
+                    } else {
+                      // Different LU selected - reset marker and set new LU
+                      setMarker(null);
+                      // Regular LU selection - update selected LU and highlighting
+                      setSelectedFeature(lu);
+                      // When LU is selected, also select it as a feature to trigger highlighting
+                      setSelectedFeature(lu);
+                      setSelectedAttributeRow(null);
+                      
+                      // Additionally, zoom to the LU using its bbox if selected
+                      if (mapRef.current && lu.geometry) {
                         const map = mapRef.current.getMap();
+                        const geometry = lu.geometry;
                         
-                        // Query features from sta, stl, stp layers
-                        const staFeatures = map.queryRenderedFeatures({ layers: ['gdx2.sta'] });
-                        const stlFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stl'] });
-                        const stpFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stp'] });
-                        
-                        // Filter features that intersect with the selected LU
-                        const luBbox = bbox(featureForBbox);
-                        
-                        // For simplicity, we'll include all features that are within the LU bbox
-                        // A more accurate implementation would check for actual intersection
-                        const filterFeaturesInLu = (features: any[]) => {
-                          return features.filter((feature: any) => {
-                            const featureBbox = bbox({
-                              type: 'Feature',
-                              properties: {},
-                              geometry: feature.geometry
-                            });
-                            
-                            // Check if feature bbox intersects with LU bbox
-                            return !(featureBbox[2] < luBbox[0] ||
-                                   featureBbox[0] > luBbox[2] ||
-                                   featureBbox[3] < luBbox[1] ||
-                                   featureBbox[1] > luBbox[3]);
-                          });
+                        // Create a feature for bbox calculation
+                        const featureForBbox = {
+                          type: 'Feature' as const,
+                          properties: {},
+                          geometry: geometry
                         };
                         
-                        const filteredSta = filterFeaturesInLu(staFeatures);
-                        const filteredStl = filterFeaturesInLu(stlFeatures);
-                        const filteredStp = filterFeaturesInLu(stpFeatures);
+                        // Calculate bbox
+                        const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
                         
-                        // Update attribute tables
-                        setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
-                        setAttributesLinesData(filteredStl.map((f: any) => f.properties));
-                        setAttributesPointsData(filteredStp.map((f: any) => f.properties));
+                        // Zoom to the bbox
+                        map.fitBounds([
+                          [minLng, minLat],
+                          [maxLng, maxLat]
+                        ], {
+                          padding: 50,
+                          duration: 100
+                        });
                         
-                        // Show attributes panel
-                        setShowAttributes(true);
+                        // Query features within the LU area and populate attribute tables
+                        setTimeout(() => {
+                          if (mapRef.current) {
+                            const map = mapRef.current.getMap();
+                            
+                            // Query features from sta, stl, stp layers
+                            const staFeatures = map.queryRenderedFeatures({ layers: ['gdx2.sta'] });
+                            const stlFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stl'] });
+                            const stpFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stp'] });
+                            
+                            // Filter features that intersect with the selected LU
+                            const luBbox = bbox(featureForBbox);
+                            
+                            // For simplicity, we'll include all features that are within the LU bbox
+                            // A more accurate implementation would check for actual intersection
+                            const filterFeaturesInLu = (features: any[]) => {
+                              return features.filter((feature: any) => {
+                                const featureBbox = bbox({
+                                  type: 'Feature',
+                                  properties: {},
+                                  geometry: feature.geometry
+                                });
+                                
+                                // Check if feature bbox intersects with LU bbox
+                                return !(featureBbox[2] < luBbox[0] ||
+                                       featureBbox[0] > luBbox[2] ||
+                                       featureBbox[3] < luBbox[1] ||
+                                       featureBbox[1] > luBbox[3]);
+                              });
+                            };
+                            
+                            const filteredSta = filterFeaturesInLu(staFeatures);
+                            const filteredStl = filterFeaturesInLu(stlFeatures);
+                            const filteredStp = filterFeaturesInLu(stpFeatures);
+                            
+                            // Update attribute tables
+                            setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
+                            setAttributesLinesData(filteredStl.map((f: any) => f.properties));
+                            setAttributesPointsData(filteredStp.map((f: any) => f.properties));
+                            
+                            // Show attributes panel
+                            setShowAttributes(true);
+                          }
+                        }, 100);
+                      } else {
+                        // If lu is null, clear the attribute tables
+                        setAttributesPolygonsData([]);
+                        setAttributesLinesData([]);
+                        setAttributesPointsData([]);
                       }
-                    }, 100);
+                    }
                   } else {
-                    // If lu is null, clear the attribute tables
+                    // Deselect LU
+                    setSelectedFeature(null);
+                    setMarker(null);
                     setAttributesPolygonsData([]);
                     setAttributesLinesData([]);
                     setAttributesPointsData([]);
@@ -1150,3 +1194,5 @@ export default function App() {
     </div>
   );
 }
+
+

@@ -1,6 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { Feature } from '../types';
 import { FeatureTable } from './map/FeatureTable';
+import { LuMarkerPanel } from './LuMarkerPanel';
 
 interface LuSelectPanelProps {
   luFeatures: Feature[];
@@ -32,21 +33,6 @@ export function LuSelectPanel({
 
   return (
     <div className="h-full overflow-auto flex flex-col">
-      <div className="sticky top-0 bg-background z-10 pb-3">
-        <h3 className="text-sm font-medium mb-3 bg-purple-100 p-2 rounded">Выбрать по ЛУ</h3>
-        <div className="flex gap-2 px-3 pb-2">
-          <button
-            type="button"
-            className="p-2 rounded border border-gray-300 hover:bg-gray-100"
-            title="Поставить маркер"
-            onClick={() => {
-              // Logic to place marker will be implemented in App.tsx
-            }}
-          >
-            📍
-          </button>
-        </div>
-      </div>
       <div className="flex-1 overflow-auto px-3 pb-3">
         <div className="mb-4">
           <label className="text-sm font-medium mb-2 block">Лицензионные участки:</label>
@@ -72,10 +58,9 @@ export function LuSelectPanel({
               </div>
             ))}
           </div>
-        </div>
-        
         
       </div>
+      <LuMarkerPanel selectedLu={selectedLu} onMarkerPlace={onLuSelect} />
     </div>
   );
 }
