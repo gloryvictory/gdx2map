@@ -28,10 +28,11 @@ interface RightPanelProps {
   showLuSelect: boolean;
   onToggleLuSelect: (show: boolean) => void;
   luFeatures: Feature[];
-  selectedFeature: Feature | null;
+  selectedLu: Feature | null;
   onLuSelect: (lu: Feature | null) => void;
   showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
+  selectedFeature: Feature | null;
   onFeatureSelect: (feature: Feature | null) => void;
   onFeatureHover: (feature: Feature | null) => void;
   onMarkerAttributesClick: () => void;
@@ -113,7 +114,7 @@ function exportToExcel(features: Feature[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedFeature, onLuSelect, showAttributes, onToggleAttributes, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0) || showLuSelect;
 // isInfoPanelOpen ? 60 : 80
@@ -203,7 +204,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
             <div className="flex-1 flex flex-col">
               <LuSelectPanel
                 luFeatures={luFeatures}
-                selectedLu={selectedFeature}
+                selectedLu={selectedLu}
                 onLuSelect={onLuSelect}
                 visibleLayers={visibleLayers}
                 onFeatureSelect={onFeatureSelect}
@@ -212,187 +213,185 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
             </div>
           )}
         </div>
-        <>
-          <PanelResizeHandle className="w-1 bg-border" />
-          <Panel minSize={4} maxSize={4} defaultSize={4} className="bg-background border-l border-border">
-            <div className="h-full flex flex-col items-center justify-start gap-2 p-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={activeInfoMode === 'points' ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => {
-                        if (activeInfoMode === 'points') {
-                          onSetActiveInfoMode(null);
-                        } else {
-                          onSetActiveInfoMode('points');
-                          // Deactivate other modes
-                          onToggleMarkerInfo(false);
-                          onSetRectangleSelection(false);
-                          // Note: showMarkerAttributes is handled in App.tsx
-                        }
-                      }}
-                      className="w-10 h-10"
-                    >
-                      <MapPin className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Информация под курсором - точки</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={activeInfoMode === 'lines' ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => {
-                        if (activeInfoMode === 'lines') {
-                          onSetActiveInfoMode(null);
-                        } else {
-                          onSetActiveInfoMode('lines');
-                          // Deactivate other modes
-                          onToggleMarkerInfo(false);
-                          onSetRectangleSelection(false);
-                          // Note: showMarkerAttributes is handled in App.tsx
-                        }
-                      }}
-                      className="w-10 h-10"
-                    >
-                      <Route className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Информация под курсором - линии</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={activeInfoMode === 'polygons' ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => {
-                        if (activeInfoMode === 'polygons') {
-                          onSetActiveInfoMode(null);
-                        } else {
-                          onSetActiveInfoMode('polygons');
-                          // Deactivate other modes
-                          onToggleMarkerInfo(false);
-                          onSetRectangleSelection(false);
-                          // Note: showMarkerAttributes is handled in App.tsx
-                        }
-                      }}
-                      className="w-10 h-10"
-                    >
-                      <Square className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Информация под курсором - полигоны</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={showMarkerInfo ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => {
-                        if (showMarkerInfo) {
-                          onToggleMarkerInfo(false);
-                        } else {
-                          onToggleMarkerInfo(true);
-                          onSetActiveInfoMode(null);
-                          onSetRectangleSelection(false);
-                          // Note: showMarkerAttributes is handled in App.tsx
-                        }
-                      }}
-                      className="w-10 h-10"
-                    >
-                      <Flag className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Информация под маркером</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={showMarkerAttributes ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => {
-                        onMarkerAttributesClick();
-                        // Deactivate other modes when activating marker attributes
-                        onSetActiveInfoMode(null);
-                        onToggleMarkerInfo(false);
-                        onSetRectangleSelection(false);
-                      }}
-                      className="w-10 h-10"
-                    >
-                      <Target className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Атрибуты под маркером</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={showRectangleSelection ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => {
-                        if (showRectangleSelection) {
-                          onSetRectangleSelection(false);
-                        } else {
-                          onSetRectangleSelection(true);
-                          // Deactivate other modes when activating rectangle selection
-                          onSetActiveInfoMode(null);
-                          onToggleMarkerInfo(false);
-                          // Note: showMarkerAttributes is handled in App.tsx
-                        }
-                      }}
-                      className="w-10 h-10"
-                    >
-                      <MousePointer className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Выбрать прямоугольником</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={showLuSelect ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => {
-                        if (showLuSelect) {
-                          onToggleLuSelect(false);
-                        } else {
-                          onToggleLuSelect(true);
-                          // Deactivate other modes when activating LU selection
-                          onSetActiveInfoMode(null);
-                          onToggleMarkerInfo(false);
-                          onSetRectangleSelection(false);
-                          // Note: showMarkerAttributes is handled in App.tsx
-                        }
-                      }}
-                      className="w-10 h-10"
-                    >
-                      <MapPin className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Выбрать по ЛУ</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </Panel>
-        </>
       </Panel>
+      <PanelResizeHandle className="w-1 bg-border" />
+      <Panel minSize={4} maxSize={4} defaultSize={4} className="bg-background border-l border-border">
+        <div className="h-full flex flex-col items-center justify-start gap-2 p-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={activeInfoMode === 'points' ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    if (activeInfoMode === 'points') {
+                      onSetActiveInfoMode(null);
+                    } else {
+                      onSetActiveInfoMode('points');
+                      // Deactivate other modes
+                      onToggleMarkerInfo(false);
+                      onSetRectangleSelection(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
+                  className="w-10 h-10"
+                >
+                  <MapPin className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Информация под курсором - точки</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={activeInfoMode === 'lines' ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    if (activeInfoMode === 'lines') {
+                      onSetActiveInfoMode(null);
+                    } else {
+                      onSetActiveInfoMode('lines');
+                      // Deactivate other modes
+                      onToggleMarkerInfo(false);
+                      onSetRectangleSelection(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
+                  className="w-10 h-10"
+                >
+                  <Route className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Информация под курсором - линии</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={activeInfoMode === 'polygons' ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    if (activeInfoMode === 'polygons') {
+                      onSetActiveInfoMode(null);
+                    } else {
+                      onSetActiveInfoMode('polygons');
+                      // Deactivate other modes
+                      onToggleMarkerInfo(false);
+                      onSetRectangleSelection(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
+                  className="w-10 h-10"
+                >
+                  <Square className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Информация под курсором - полигоны</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showMarkerInfo ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    if (showMarkerInfo) {
+                      onToggleMarkerInfo(false);
+                    } else {
+                      onToggleMarkerInfo(true);
+                      onSetActiveInfoMode(null);
+                      onSetRectangleSelection(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
+                  className="w-10 h-10"
+                >
+                  <Flag className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Информация под маркером</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showMarkerAttributes ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    onMarkerAttributesClick();
+                    // Deactivate other modes when activating marker attributes
+                    onSetActiveInfoMode(null);
+                    onToggleMarkerInfo(false);
+                    onSetRectangleSelection(false);
+                  }}
+                  className="w-10 h-10"
+                >
+                  <Target className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Атрибуты под маркером</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showRectangleSelection ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    if (showRectangleSelection) {
+                      onSetRectangleSelection(false);
+                    } else {
+                      onSetRectangleSelection(true);
+                      // Deactivate other modes when activating rectangle selection
+                      onSetActiveInfoMode(null);
+                      onToggleMarkerInfo(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
+                  className="w-10 h-10"
+                >
+                  <MousePointer className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Выбрать прямоугольником</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showLuSelect ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => {
+                    if (showLuSelect) {
+                      onToggleLuSelect(false);
+                    } else {
+                      onToggleLuSelect(true);
+                      // Deactivate other modes when activating LU selection
+                      onSetActiveInfoMode(null);
+                      onToggleMarkerInfo(false);
+                      onSetRectangleSelection(false);
+                      // Note: showMarkerAttributes is handled in App.tsx
+                    }
+                  }}
+                  className="w-10 h-10"
+                >
+                  <MapPin className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Выбрать по ЛУ</p>
+              </TooltipContent>
+            </Tooltip>
+           </TooltipProvider>
+         </div>
+       </Panel>
     </PanelGroup>
   );
 }

@@ -34,6 +34,7 @@ export function LuSelectPanel({
   return (
     <div className="h-full overflow-auto flex flex-col">
       <div className="flex-1 overflow-auto px-3 pb-3">
+        <LuMarkerPanel selectedLu={selectedLu} onMarkerPlace={onLuSelect} />
         <div className="mb-4">
           <label className="text-sm font-medium mb-2 block">Лицензионные участки:</label>
           <div className="space-y-1 h-full overflow-auto border rounded p-2">
@@ -58,9 +59,8 @@ export function LuSelectPanel({
               </div>
             ))}
           </div>
-        
+        </div>
       </div>
-      <LuMarkerPanel selectedLu={selectedLu} onMarkerPlace={onLuSelect} />
     </div>
   );
 }
