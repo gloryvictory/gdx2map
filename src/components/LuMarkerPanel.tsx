@@ -10,7 +10,7 @@ import { Feature } from '../types';
 
 interface LuMarkerPanelProps {
   selectedLu: Feature | null;
-  onMarkerPlace: (lu: Feature) => void;
+  onMarkerPlace: (lu: Feature, showInfo?: boolean) => void;
 }
 
 export function LuMarkerPanel({ selectedLu, onMarkerPlace }: LuMarkerPanelProps) {
@@ -25,7 +25,7 @@ export function LuMarkerPanel({ selectedLu, onMarkerPlace }: LuMarkerPanelProps)
                 variant="outline"
                 size="icon"
                 className="w-10 h-10"
-                onClick={() => selectedLu && onMarkerPlace(selectedLu)}
+                onClick={() => selectedLu && onMarkerPlace(selectedLu, false)}
                 disabled={!selectedLu}
               >
                 <MapPin className="w-4 h-4" />

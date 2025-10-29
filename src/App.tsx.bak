@@ -831,7 +831,7 @@ export default function App() {
                 }}
                 luFeatures={luFeatures}
                 selectedLu={selectedFeature}
-                onLuSelect={(lu, showInfo = true) => {
+                onLuSelect={(lu) => {
                   if (lu) {
                     // Check if this is a marker placement action (same LU selected)
                     if (selectedFeature && selectedFeature.properties.id === lu.properties.id) {
@@ -858,15 +858,8 @@ export default function App() {
                       
                       if (centerLngLat) {
                         setMarker(centerLngLat);
-                        // Only show marker info if explicitly requested (default is true)
-                        if (showInfo) {
-                          setShowMarkerInfo(true);
-                          setActiveTool("info");
-                        } else {
-                          // If not showing info, make sure it's hidden
-                          setShowMarkerInfo(false);
-                          setActiveTool(null);
-                        }
+                        setShowMarkerInfo(true);
+                        setActiveTool("info");
                         // Set the marker coordinates as the current marker position
                         // This will display the marker on the map with the LU name
                       }

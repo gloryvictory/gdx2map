@@ -29,7 +29,7 @@ interface RightPanelProps {
   onToggleLuSelect: (show: boolean) => void;
   luFeatures: Feature[];
   selectedLu: Feature | null;
-  onLuSelect: (lu: Feature | null) => void;
+  onLuSelect: (lu: Feature | null, showInfo?: boolean) => void;
   showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
   selectedFeature: Feature | null;
