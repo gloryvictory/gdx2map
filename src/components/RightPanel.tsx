@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { MapPin, Route, Square, Flag, FileSpreadsheet, Database, Target, MousePointer } from 'lucide-react';
+import { MapPin, BookDashed, Route, Square, Flag, FileSpreadsheet, Database, Target, MousePointer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import {
@@ -16,27 +16,28 @@ import type { Feature, SelectedAttributeRow } from '../types';
 
 interface RightPanelProps {
   hoveredFeatures: Feature[];
-  clickedFeatures: Feature[];
+ clickedFeatures: Feature[];
   children: React.ReactNode;
   showFeatureTable: boolean;
-  onToggleFeatureTable: (show: boolean) => void;
+ onToggleFeatureTable: (show: boolean) => void;
   activeInfoMode: 'points' | 'lines' | 'polygons' | null;
   onSetActiveInfoMode: (mode: 'points' | 'lines' | 'polygons' | null) => void;
   showMarkerInfo: boolean;
   onToggleMarkerInfo: (show: boolean) => void;
   showMarkerAttributes: boolean;
-  showLuSelect: boolean;
+ showLuSelect: boolean;
   onToggleLuSelect: (show: boolean) => void;
   luFeatures: Feature[];
-  selectedLu: Feature | null;
+ selectedLu: Feature | null;
   onLuSelect: (lu: Feature | null, showInfo?: boolean) => void;
-  showAttributes: boolean;
+  onExportLuToExcel: (lu: Feature) => void;
+ showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
   selectedFeature: Feature | null;
   onFeatureSelect: (feature: Feature | null) => void;
-  onFeatureHover: (feature: Feature | null) => void;
+ onFeatureHover: (feature: Feature | null) => void;
   onMarkerAttributesClick: () => void;
-  showRectangleSelection: boolean;
+ showRectangleSelection: boolean;
   onSetRectangleSelection: (enabled: boolean) => void;
   visibleLayers: Set<string>;
 }
@@ -114,7 +115,7 @@ function exportToExcel(features: Feature[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, onExportLuToExcel, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0) || showLuSelect;
 // isInfoPanelOpen ? 60 : 80
@@ -125,7 +126,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
       </Panel>
       <PanelResizeHandle className="w-1 bg-border" />
       <Panel minSize={0} defaultSize={isInfoPanelOpen ? 20 : 0} className="bg-background">
-        <div className="h-full overflow-auto flex flex-col">
+        <div className="h-full flex flex-col">
           {showMarkerInfo && (
             <div className="flex-1 flex flex-col">
               <div className="sticky top-0 bg-background z-10 pb-3">
@@ -201,11 +202,12 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
             </div>
           )}
           {showLuSelect && (
-            <div className="flex-1 flex flex-col">
+            <div className="h-96 flex flex-col">
               <LuSelectPanel
                 luFeatures={luFeatures}
                 selectedLu={selectedLu}
                 onLuSelect={onLuSelect}
+                onExportLuToExcel={onExportLuToExcel}
                 visibleLayers={visibleLayers}
                 onFeatureSelect={onFeatureSelect}
                 onFeatureHover={onFeatureHover}
@@ -382,7 +384,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                   }}
                   className="w-10 h-10"
                 >
-                  <MapPin className="w-4 h-4" />
+                  <BookDashed className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">

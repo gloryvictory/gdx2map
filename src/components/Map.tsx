@@ -20,6 +20,7 @@ export const MapView = forwardRef<any, {
   infoMode: 'points' | 'lines' | 'polygons' | null;
   onClick: (features: Feature[], lngLat: LngLat) => void;
   marker: LngLat | null;
+  markerLuName?: string;
   onMouseMoveCoords: (coords: LngLat | null) => void;
   highlightedPoints: Set<string>;
   highlightedLines: Set<string>;
@@ -42,6 +43,7 @@ export const MapView = forwardRef<any, {
   infoMode,
   onClick,
   marker,
+  markerLuName,
   onMouseMoveCoords,
   highlightedPoints,
   highlightedLines,
@@ -49,7 +51,7 @@ export const MapView = forwardRef<any, {
   onZoomChange,
   selectedFeature,
   hoveredFeature,
-  selectedAttributeRow,
+ selectedAttributeRow,
   onRedrawStart,
   onRedrawEnd,
   filteredFeature,
@@ -593,7 +595,18 @@ export const MapView = forwardRef<any, {
         <NavigationControl visualizePitch position="top-right" />
         {marker && (
           <Marker longitude={marker.lng} latitude={marker.lat}>
-            <div className="map-marker-emoji">📍</div>
+            <div className="map-marker-emoji">
+              {markerLuName ? (
+                <div className="relative">
+                  <div>📍</div>
+                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-1 rounded whitespace-nowrap">
+                    {markerLuName}
+                  </div>
+                </div>
+              ) : (
+                <div>📍</div>
+              )}
+            </div>
           </Marker>
         )}
       </ReactMapGL>

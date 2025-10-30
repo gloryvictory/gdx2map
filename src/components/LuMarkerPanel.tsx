@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { MapPin } from 'lucide-react';
+import { MapPin, FileSpreadsheet } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -11,9 +11,10 @@ import { Feature } from '../types';
 interface LuMarkerPanelProps {
   selectedLu: Feature | null;
   onMarkerPlace: (lu: Feature, showInfo?: boolean) => void;
+  onExportToExcel: (lu: Feature) => void;
 }
 
-export function LuMarkerPanel({ selectedLu, onMarkerPlace }: LuMarkerPanelProps) {
+export function LuMarkerPanel({ selectedLu, onMarkerPlace, onExportToExcel }: LuMarkerPanelProps) {
   return (
     <div className="sticky top-0 bg-background z-10 pb-3">
       <h3 className="text-sm font-medium mb-3 bg-purple-100 p-2 rounded">Выбрать по ЛУ</h3>
@@ -33,6 +34,22 @@ export function LuMarkerPanel({ selectedLu, onMarkerPlace }: LuMarkerPanelProps)
             </TooltipTrigger>
             <TooltipContent side="left">
               <p>Поставить маркер</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="w-10 h-10"
+                onClick={() => selectedLu && onExportToExcel(selectedLu)}
+                disabled={!selectedLu}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Экспорт в Excel</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

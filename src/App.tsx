@@ -23,6 +23,7 @@ import { ALL_BASEMAPS } from "./lib/basemaps";
 import bbox from "@turf/bbox";
 import { TILE_SERVER_URL } from "./config";
 import { ReportCardDialog } from "./components/ui/ReportCardDialog";
+import { exportLuFeaturesToExcel } from './lib/excelExport';
 import type {
   Layer,
   ReportRow,
@@ -46,9 +47,8 @@ export default function App() {
   const [clickedFeatures, setClickedFeatures] = useState<Feature[]>([]);
   const [showLuSelect, setShowLuSelect] = useState(false);
   const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
-  const [luMarker, setLuMarker] = useState<LngLat | null>(null);
   const [marker, setMarker] = useState<LngLat | null>(null);
-  const [previousSelectedLu, setPreviousSelectedLu] = useState<Feature | null>(null);
+  const [markerLuName, setMarkerLuName] = useState<string | null>(null);
   const [showFeatureTable, setShowFeatureTable] = useState(false);
   const [activeInfoMode, setActiveInfoMode] = useState<
     "points" | "lines" | "polygons" | null
@@ -858,6 +858,8 @@ export default function App() {
                       
                       if (centerLngLat) {
                         setMarker(centerLngLat);
+                        // Set the LU name for the marker
+                        setMarkerLuName(lu.properties.name_rus || lu.properties.name || `Участок ${lu.properties.id}`);
                         // Only show marker info if explicitly requested (default is true)
                         if (showInfo) {
                           setShowMarkerInfo(true);
@@ -958,10 +960,19 @@ export default function App() {
                     // Deselect LU
                     setSelectedFeature(null);
                     setMarker(null);
+                    setMarkerLuName(null);
                     setAttributesPolygonsData([]);
                     setAttributesLinesData([]);
                     setAttributesPointsData([]);
                   }
+                }}
+                onExportLuToExcel={(lu) => {
+                  exportLuFeaturesToExcel(
+                    lu,
+                    attributesPointsData,
+                    attributesLinesData,
+                    attributesPolygonsData
+                  );
                 }}
                 showAttributes={showAttributes}
                 onToggleAttributes={(show) => {
@@ -1001,6 +1012,7 @@ export default function App() {
                   infoMode={activeInfoMode}
                   onClick={handleMapClickWithMarkerAttributes}
                   marker={marker}
+                  markerLuName={markerLuName ?? undefined}
                   onMouseMoveCoords={setMouseCoords}
                   highlightedPoints={highlightedPoints}
                   highlightedLines={highlightedLines}
