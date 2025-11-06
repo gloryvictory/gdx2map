@@ -1,0 +1,28 @@
+
+###
+GET http://localhost:8001/api/v1/author/all HTTP/1.1
+Accept: application/json
+Content-type: application/json
+# Authorization:Basic YWRtaW46YWRtaW4=
+
+
+###
+# GET http://localhost:8983/solr/#/files/query?q=*:*&q.op=OR&indent=true&useParams=
+
+
+###
+# GET http://localhost:8002/api/v1/adoc/9917
+
+###
+GET http://localhost:8001/api/v1/report/rgf/416252 HTTP/1.1
+Accept: application/json
+Content-type: application/json
+# Authorization:Basic YWRtaW46YWRtaW4=
+
+
+###
+GET http://r48-vgeohub01.zsniigg.local:8001/api/v1/report/rgf/416252 HTTP/1.1
+Accept: application/json
+Content-type: application/json
+# Authorization:Basic YWRtaW46YWRtaW4=
+

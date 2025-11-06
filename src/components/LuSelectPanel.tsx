@@ -35,15 +35,15 @@ export function LuSelectPanel({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-1 flex flex-col px-3 pb-3">
+      <div className="flex-1 flex flex-col px-3 pb-3 overflow-hidden">
         <LuMarkerPanel
           selectedLu={selectedLu}
           onMarkerPlace={(lu, showInfo = true) => onLuSelect(lu, showInfo)}
           onExportToExcel={onExportLuToExcel}
         />
-        <div className="mb-4 flex-1 flex flex-col h-full">
+        <div className="mb-4 flex-1 flex flex-col">
           <label className="text-sm font-medium mb-2 block">Лицензионные участки: ({luFeatures.length})</label>
-          <div className="space-y-1 flex-1 overflow-y-auto border rounded p-2 max-h-64">
+          <div className="space-y-1 flex-1 overflow-y-auto border rounded p-2 max-h-96    ">
             {luFeatures
               .slice()
               .sort((a, b) => {

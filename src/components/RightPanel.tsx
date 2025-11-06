@@ -202,7 +202,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
             </div>
           )}
           {showLuSelect && (
-            <div className="h-96 flex flex-col">
+            <div className="h-full flex flex-col">
               <LuSelectPanel
                 luFeatures={luFeatures}
                 selectedLu={selectedLu}

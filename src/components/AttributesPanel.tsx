@@ -4,14 +4,14 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
-import { Eye, MapPin, Filter, FilterX, Download, Square } from 'lucide-react';
+import { Eye, MapPin, Filter, FilterX, Download, Square, BookKey, FileSearch } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
+ TooltipTrigger,
 } from './ui/tooltip';
 import {
   ContextMenu,
@@ -19,6 +19,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from './ui/context-menu';
+import { BACKEND_SERVER_URL, RGF_URL } from '../config';
+import { useState } from 'react';
 
 // Register all community features
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -94,6 +96,34 @@ export function AttributesPanel({
   };
 
   const columns = getColumns();
+
+  const checkRegistryAvailability = async (data: ReportRow[], type: 'points' | 'lines' | 'polygons') => {
+    // For now, we'll implement a simpler approach by showing an alert with the counts
+    // In a real implementation, we would need to update the grid's rowData and column definitions
+    const results = await Promise.all(data.map(async (row) => {
+      if (row.n_uk_rosg && row.n_uk_rosg !== 'None') {
+        try {
+          const response = await fetch(`${BACKEND_SERVER_URL}${RGF_URL}${row.n_uk_rosg}`);
+          if (response.ok) {
+            const result = await response.json();
+            return { id: row.id, hasRegistry: result && result.count > 0 };
+          } else {
+            return { id: row.id, hasRegistry: false };
+          }
+        } catch (error) {
+          console.error('Error checking registry for RGF number:', row.n_uk_rosg, error);
+          return { id: row.id, hasRegistry: false };
+        }
+      } else {
+        return { id: row.id, hasRegistry: false };
+      }
+    }));
+
+    const foundCount = results.filter(r => r.hasRegistry).length;
+    const notFoundCount = results.length - foundCount;
+    
+    alert(`Проверка реестра завершена:\nНайдено: ${foundCount}\nНе найдено: ${notFoundCount}`);
+  };
 
   const exportToExcel = (data: ReportRow[], filename: string) => {
     // Create a mapping from English keys to Russian labels
@@ -179,6 +209,24 @@ export function AttributesPanel({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => checkRegistryAvailability(pointsData, 'points')}
+                    className="h-8"
+                  >
+                    <FileSearch className="w-4 h-4 mr-1" />
+                    Сверка с реестром
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Проверить наличие записей в реестре</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="ag-theme-alpine ag-grid-container">
             <ContextMenu>
@@ -245,7 +293,7 @@ export function AttributesPanel({
                       onShowReportCard(selectedRow, 'points');
                     }
                   }}>
-                    <Square className="w-4 h-4 mr-2" />
+                    <BookKey className="w-4 h-4 mr-2" />
                     Показать карточку отчета
                   </ContextMenuItem>
                 )}
@@ -386,7 +434,7 @@ export function AttributesPanel({
                       onShowReportCard(selectedRow, 'lines');
                     }
                   }}>
-                    <Square className="w-4 h-4 mr-2" />
+                    <BookKey className="w-4 h-4 mr-2" />
                     Показать карточку отчета
                   </ContextMenuItem>
                 )}
@@ -421,6 +469,26 @@ export function AttributesPanel({
                 )}
               </ContextMenuContent>
             </ContextMenu>
+          </div>
+          <div className="mb-2 flex gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => checkRegistryAvailability(linesData, 'lines')}
+                    className="h-8"
+                  >
+                    <FileSearch className="w-4 h-4 mr-1" />
+                    Сверка с реестром
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Проверить наличие записей в реестре</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </TabsContent>
         <TabsContent value="polygons">
@@ -458,6 +526,24 @@ export function AttributesPanel({
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <p>Экспортировать данные полигонов в Excel файл</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => checkRegistryAvailability(polygonsData, 'polygons')}
+                    className="h-8"
+                  >
+                    <FileSearch className="w-4 h-4 mr-1" />
+                    Сверка с реестром
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Проверить наличие записей в реестре</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -527,7 +613,7 @@ export function AttributesPanel({
                       onShowReportCard(selectedRow, 'polygons');
                     }
                   }}>
-                    <Square className="w-4 h-4 mr-2" />
+                    <BookKey className="w-4 h-4 mr-2" />
                     Показать карточку отчета
                   </ContextMenuItem>
                 )}
