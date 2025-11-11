@@ -368,7 +368,25 @@ export function AttributesPanel({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => checkRegistryAvailability(linesData, 'lines')}
+                    className="h-8"
+                  >
+                    <FileSearch className="w-4 h-4 mr-1" />
+                    Сверка с реестром
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Проверить наличие записей в реестре</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+         </div>
           <div className="ag-theme-alpine ag-grid-container">
             <ContextMenu>
               <ContextMenuTrigger>
@@ -469,26 +487,6 @@ export function AttributesPanel({
                 )}
               </ContextMenuContent>
             </ContextMenu>
-          </div>
-          <div className="mb-2 flex gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => checkRegistryAvailability(linesData, 'lines')}
-                    className="h-8"
-                  >
-                    <FileSearch className="w-4 h-4 mr-1" />
-                    Сверка с реестром
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>Проверить наличие записей в реестре</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         </TabsContent>
         <TabsContent value="polygons">
