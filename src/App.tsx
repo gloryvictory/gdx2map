@@ -442,7 +442,7 @@ export default function App() {
             try {
               // Query all source features from the LU layer (not just rendered ones)
               const sourceId = "gdx2.lu";
-              const sourceLayer = "lu";
+              const sourceLayer = "gdx2.lu";
               
               // First try to query source features
               let features: Feature[] = [];

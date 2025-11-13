@@ -71,12 +71,13 @@ export function ReportCardDialog({ open, onOpenChange, rowData, type }: ReportCa
 
   // Fetch RGF data when dialog opens and rowData has RGF number
   useEffect(() => {
-    if (open && rowData?.n_uk_rosg && rowData.n_uk_rosg !== 'None') {
+    if (open && rowData?.in_n_rosg && rowData.in_n_rosg !== 'None') {
       const fetchRgfData = async () => {
         setRgfLoading(true);
         setRgfError(null);
         try {
-          const url_rgf_get = `${BACKEND_SERVER_URL}${RGF_URL}${rowData.n_uk_rosg}`
+          const url_rgf_get = `${BACKEND_SERVER_URL}${RGF_URL}${rowData.in_n_rosg}`
+          // const url_rgf_get = `${BACKEND_SERVER_URL}${RGF_URL}${rowData.in_n_rosg}`
           console.log('Fetching RGF data:', url_rgf_get);
           const response = await fetch(url_rgf_get);
           console.log('Error fetching RGF data:', response);
