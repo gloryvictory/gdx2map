@@ -87,6 +87,7 @@ export default function App() {
   const [selectedAttributeRow, setSelectedAttributeRow] =
     useState<SelectedAttributeRow | null>(null);
   const [isMapRedrawing, setIsMapRedrawing] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
   const [filteredFeature, setFilteredFeature] =
     useState<FilteredFeature | null>(null);
   const [showRectangleSelection, setShowRectangleSelection] = useState(false);
@@ -102,30 +103,56 @@ export default function App() {
  const mapRef = useRef<any>(null);
 
   useEffect(() => {
-    fetch(`${TILE_SERVER_URL}/catalog`)
+    fetch(`${TILE_SERVER_URL}/index.json`)
       .then((response) => response.json())
       .then((data) => {
-        const tiles = data.tiles || {};
+        // pg_tileserv returns { tables: [...] } or direct object with table IDs as keys
+        const tables = data.tables || data || {};
         const titleMap: Record<string, string> = {
-          "gdx2.stp.geom": "Отчеты - точки",
-          "gdx2.stl.geom": "Отчеты - линии",
-          "gdx2.sta.geom": "Отчеты - Полигоны",
-          "gdx2.lu.geom": "Лицензионные участки",
-          "gdx2.field.geom": "Месторождения",
+          "gdx2.stp": "Отчеты - точки",
+          "gdx2.stl": "Отчеты - линии",
+          "gdx2.sta": "Отчеты - Полигоны",
+          "gdx2.lu": "Лицензионные участки",
+          "gdx2.field": "Месторождения",
         };
         const order = ["field", "lu", "sta", "stl", "stp"];
-        const fetchedLayers: Layer[] = Object.keys(tiles)
-          .map((tableName) => ({
-            name: tableName,
-            title:
-              titleMap[tiles[tableName].description] ||
-              tiles[tableName].description ||
-              tableName,
-            description: tiles[tableName].description || tableName,
-            type: "xyz",
-            url: `${TILE_SERVER_URL}/${tableName}/{z}/{x}/{y}`,
-            level: { min: 0, max: 22 },
-          }))
+        
+        // Handle both array format and object format from pg_tileserv
+        let tableEntries: Array<{ id: string; description?: string; table?: string; schema?: string }> = [];
+        
+        if (Array.isArray(tables)) {
+          // Array format: [{ id: "gdx2.field", schema: "gdx2", table: "field", description: "..." }, ...]
+          tableEntries = tables;
+        } else {
+          // Object format: { "gdx2.field": { description: "..." }, ... }
+          tableEntries = Object.keys(tables).map((id) => ({
+            id,
+            description: tables[id].description,
+            table: id.split('.').pop() || id,
+            schema: id.split('.')[0] || 'public',
+          }));
+        }
+        
+        const fetchedLayers: Layer[] = tableEntries
+          .map((table) => {
+            // Extract table name from id (e.g., "gdx2.field" -> "field")
+            const tableName = table.table || table.id.split('.').pop() || table.id;
+            const fullId = table.id || `${table.schema || 'gdx2'}.${tableName}`;
+            
+            return {
+              name: tableName,
+              title:
+                titleMap[fullId] ||
+                table.description ||
+                tableName,
+              description: table.description || tableName,
+              type: "xyz",
+              // pg_tileserv format: /{schema}.{table}/{z}/{x}/{y}.pbf
+              url: `${TILE_SERVER_URL}/${fullId}/{z}/{x}/{y}.pbf`,
+              level: { min: 0, max: 22 },
+            };
+          })
+          .filter((layer) => order.includes(layer.name))
           .sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
         setLayers(fetchedLayers);
         // Set all visible
@@ -207,48 +234,30 @@ export default function App() {
       const firstHoveredFeature = hoveredFeatures[0];
       setHoveredFeature(firstHoveredFeature);
       
+      // Always update attributes data when hovering, even if there's a selectedAttributeRow
+      // This allows hover to work even after selecting a row in the table
+      const points: ReportRow[] = [];
+      const lines: ReportRow[] = [];
+      const polygons: ReportRow[] = [];
+
+      hoveredFeatures.forEach((feature) => {
+        const type = feature.layer.id.split(".")[1];
+        if (type === "stp") {
+          points.push(feature.properties);
+        } else if (type === "stl") {
+          lines.push(feature.properties);
+        } else if (type === "sta") {
+          polygons.push(feature.properties);
+        }
+      });
+
+      setAttributesPointsData(points);
+      setAttributesLinesData(lines);
+      setAttributesPolygonsData(polygons);
+      
       // If we have a selected feature and we're hovering over a different feature, clear the selection
       if (selectedFeature && selectedFeature.properties.id !== firstHoveredFeature.properties.id) {
         setSelectedFeature(null);
-        // Update attributes data to show the hovered feature instead
-        const points: ReportRow[] = [];
-        const lines: ReportRow[] = [];
-        const polygons: ReportRow[] = [];
-
-        hoveredFeatures.forEach((feature) => {
-          const type = feature.layer.id.split(".")[1];
-          if (type === "stp") {
-            points.push(feature.properties);
-          } else if (type === "stl") {
-            lines.push(feature.properties);
-          } else if (type === "sta") {
-            polygons.push(feature.properties);
-          }
-        });
-
-        setAttributesPointsData(points);
-        setAttributesLinesData(lines);
-        setAttributesPolygonsData(polygons);
-      } else if (!selectedFeature) {
-        // If no feature is selected, show the hovered features in the panel
-        const points: ReportRow[] = [];
-        const lines: ReportRow[] = [];
-        const polygons: ReportRow[] = [];
-
-        hoveredFeatures.forEach((feature) => {
-          const type = feature.layer.id.split(".")[1];
-          if (type === "stp") {
-            points.push(feature.properties);
-          } else if (type === "stl") {
-            lines.push(feature.properties);
-          } else if (type === "sta") {
-            polygons.push(feature.properties);
-          }
-        });
-
-        setAttributesPointsData(points);
-        setAttributesLinesData(lines);
-        setAttributesPolygonsData(polygons);
       }
     } else if (activeInfoMode && hoveredFeatures.length === 0 && selectedFeature) {
       // When in info mode but not hovering over any features, but we have a selected feature
@@ -276,15 +285,18 @@ export default function App() {
       }
     } else if (activeInfoMode && hoveredFeatures.length === 0 && !selectedFeature) {
       // When in info mode but not hovering over any features and no selected feature
-      setAttributesPointsData([]);
-      setAttributesLinesData([]);
-      setAttributesPolygonsData([]);
+      // Don't clear data if there's a selectedAttributeRow - keep the table data
+      if (!selectedAttributeRow) {
+        setAttributesPointsData([]);
+        setAttributesLinesData([]);
+        setAttributesPolygonsData([]);
+      }
       // Only set hoveredFeature to null if there's no selected feature
       if (hoveredFeature && !selectedFeature) {
         setHoveredFeature(null);
       }
     }
- }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature]);
+ }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedAttributeRow]);
 
 
   const updateAttributesData = (features: Feature[]) => {
@@ -421,19 +433,46 @@ export default function App() {
 
   // Load LU features when LU layer becomes visible and we're in LU select mode
   useEffect(() => {
-    if (showLuSelect && visibleLayers.has("lu") && luFeatures.length === 0) {
+    if (showLuSelect && visibleLayers.has("lu")) {
       // Load LU features with a delay to ensure map is ready
       const loadLuFeatures = () => {
         if (mapRef.current) {
           const map = mapRef.current.getMap();
           if (map && map.isStyleLoaded()) {
             try {
-              // Query all rendered features from the LU layer
-              const features = map.queryRenderedFeatures({ layers: ["gdx2.lu"] }) as Feature[];
-              console.log("Loaded LU features:", features.length);
-              setLuFeatures(features);
+              // Query all source features from the LU layer (not just rendered ones)
+              const sourceId = "gdx2.lu";
+              const sourceLayer = "lu";
+              
+              // First try to query source features
+              let features: Feature[] = [];
+              try {
+                const sourceFeatures = map.querySourceFeatures(sourceId, {
+                  sourceLayer: sourceLayer,
+                });
+                features = sourceFeatures as Feature[];
+              } catch (sourceError) {
+                // If source query fails, try without sourceLayer
+                try {
+                  const sourceFeatures = map.querySourceFeatures(sourceId);
+                  features = sourceFeatures as Feature[];
+                } catch (altError) {
+                  // Fallback to rendered features if source query fails
+                  const renderedFeatures = map.queryRenderedFeatures({ layers: ["gdx2.lu"] });
+                  features = renderedFeatures as Feature[];
+                }
+              }
+              
+              if (features.length > 0) {
+                setLuFeatures(features);
+              } else {
+                // If no features found, try again after a delay (maybe layer is still loading)
+                setTimeout(loadLuFeatures, 500);
+              }
             } catch (e) {
               console.error("Error loading LU features:", e);
+              // Retry after delay
+              setTimeout(loadLuFeatures, 500);
             }
           } else {
             // If map is not ready, try again after a short delay
@@ -445,61 +484,154 @@ export default function App() {
       // Start loading after a small delay
       const timer = setTimeout(loadLuFeatures, 300);
       return () => clearTimeout(timer);
+    } else if (!showLuSelect) {
+      // Clear LU features when panel is closed
+      setLuFeatures([]);
     }
-  }, [showLuSelect, visibleLayers, luFeatures.length]);
+  }, [showLuSelect, visibleLayers]);
 
   const handleFilterToFeature = (
     row: ReportRow,
     type: "points" | "lines" | "polygons",
   ) => {
+    setIsFiltering(true);
     setFilteredFeature({ row, type });
     // Ensure layer is visible
     const layerName =
       type === "points" ? "stp" : type === "lines" ? "stl" : "sta";
     setVisibleLayers(new Set([layerName])); // Only show this layer
 
-    // Zoom to the feature
+    // Apply filter and hide other layers immediately
     setTimeout(() => {
       if (mapRef.current && row) {
         const map = mapRef.current.getMap();
-        const layerName =
+        const fullLayerName =
           type === "points"
             ? "gdx2.stp"
             : type === "lines"
               ? "gdx2.stl"
               : "gdx2.sta";
-        map.setFilter(layerName, ["==", ["get", "id"], row.id]);
-
-        // Unified zooming to the filtered feature(s)
-        const features = map.queryRenderedFeatures(undefined, {
-          layers: [layerName],
+        
+        // Hide all other layers first
+        const allLayerNames = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta', 'gdx2.lu', 'gdx2.field'];
+        allLayerNames.forEach(name => {
+          if (map.getLayer(name)) {
+            if (name === fullLayerName) {
+              // Make target layer visible
+              map.setLayoutProperty(name, 'visibility', 'visible');
+              // Apply filter to show only the selected feature
+              // Try both string and number comparison for id
+              const idValue = row.id;
+              const filter = typeof idValue === 'number' 
+                ? ["==", ["get", "id"], idValue]
+                : ["==", ["get", "id"], String(idValue)];
+              map.setFilter(name, filter as any);
+            } else {
+              // Hide all other layers
+              map.setLayoutProperty(name, 'visibility', 'none');
+              // Clear any existing filters on hidden layers
+              map.setFilter(name, null);
+            }
+          }
         });
-        if (features.length > 0) {
-          const featureCollection = {
-            type: "FeatureCollection" as const,
-            features: features.map((f: any) => ({
-              type: "Feature" as const,
-              geometry: f.geometry,
-              properties: f.properties,
-            })),
+
+        map.triggerRepaint();
+
+        // Zoom to the feature after filter is applied
+        setTimeout(() => {
+          // Wait a bit more for tiles to load
+          const checkFeatures = () => {
+            const features = map.queryRenderedFeatures(undefined, {
+              layers: [fullLayerName],
+            });
+            
+            if (features.length > 0) {
+              const featureCollection = {
+                type: "FeatureCollection" as const,
+                features: features.map((f: any) => ({
+                  type: "Feature" as const,
+                  geometry: f.geometry,
+                  properties: f.properties,
+                })),
+              };
+              const [minLng, minLat, maxLng, maxLat] = bbox(featureCollection as any);
+              map.fitBounds(
+                [
+                  [minLng, minLat],
+                  [maxLng, maxLat],
+                ],
+                {
+                  padding: 50,
+                  duration: 1000,
+                },
+              );
+              setIsFiltering(false);
+            } else {
+              // If no rendered features, try querying source features
+              const sourceId = fullLayerName;
+              const sourceLayer = fullLayerName.split(".")[1];
+              const idValue = row.id;
+              const sourceFilter = typeof idValue === 'number' 
+                ? ["==", "id", idValue]
+                : ["==", "id", String(idValue)];
+              
+              const sourceFeatures = map.querySourceFeatures(sourceId, {
+                sourceLayer: sourceLayer,
+                filter: sourceFilter as any,
+              });
+              
+              if (sourceFeatures.length > 0) {
+                const feature = sourceFeatures[0];
+                const geometry = feature.geometry as any;
+                if (geometry.type === 'Point') {
+                  const coords = geometry.coordinates as [number, number];
+                  if (coords && coords.length >= 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                    map.flyTo({
+                      center: coords,
+                      zoom: 12,
+                      duration: 1000,
+                    });
+                  }
+                } else {
+                  const featureForBbox = {
+                    type: 'Feature' as const,
+                    properties: {},
+                    geometry: geometry
+                  };
+                  const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+                  if (!isNaN(minLng) && !isNaN(minLat) && !isNaN(maxLng) && !isNaN(maxLat)) {
+                    map.fitBounds(
+                      [
+                        [minLng, minLat],
+                        [maxLng, maxLat],
+                      ],
+                      {
+                        padding: 50,
+                        duration: 1000,
+                      },
+                    );
+                  }
+                }
+                setIsFiltering(false);
+              } else {
+                // Try again after a delay if features not found
+                setTimeout(() => {
+                  checkFeatures();
+                }, 500);
+              }
+            }
           };
-          const [minLng, minLat, maxLng, maxLat] = bbox(featureCollection as any);
-          map.fitBounds(
-            [
-              [minLng, minLat],
-              [maxLng, maxLat],
-            ],
-            {
-              padding: 50,
-              duration: 100,
-            },
-          );
-        }
+          
+          checkFeatures();
+        }, 300);
+      } else {
+        setIsFiltering(false);
       }
     }, 100);
   };
 
   const handleClearFilter = (type: "points" | "lines" | "polygons") => {
+    setIsFiltering(true);
     setFilteredFeature(null);
     // Restore all layers
     const allLayers = ["field", "lu", "sta", "stl", "stp"];
@@ -513,14 +645,24 @@ export default function App() {
             ? "gdx2.stl"
             : "gdx2.sta";
       map.setFilter(layerName, null);
+      
+      // Show all layers
+      const allLayerNames = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta', 'gdx2.lu', 'gdx2.field'];
+      allLayerNames.forEach(name => {
+        if (map.getLayer(name)) {
+          map.setLayoutProperty(name, 'visibility', 'visible');
+        }
+      });
+      
+      map.triggerRepaint();
     }
+    setTimeout(() => setIsFiltering(false), 300);
   };
 
   const handleShowBbox = (
     row: ReportRow,
     type: "points" | "lines" | "polygons",
   ) => {
-    console.log("handleShowBbox called with row:", row, "type:", type);
     if (mapRef.current && row) {
       const map = mapRef.current.getMap();
       const layerName =
@@ -537,7 +679,6 @@ export default function App() {
         filter: ["==", "id", row.id],
       });
 
-      console.log("Found features:", features.length);
       if (features.length > 0) {
         const feature = features[0];
         const geometry = feature.geometry as any;
@@ -548,7 +689,6 @@ export default function App() {
         };
         
         const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-        console.log("Bbox coords:", [minLng, minLat, maxLng, maxLat]);
         setBboxData({ minLng, minLat, maxLng, maxLat });
         setShowBboxDialog(true);
       }
@@ -570,7 +710,7 @@ export default function App() {
     } else {
       setSelectedAttributeRow({ data: row, type });
       setSelectedFeature(null); // Clear feature selection when selecting attribute row
-      setFilteredFeature(null); // Clear any filtered feature when selecting a new row
+      // Don't clear filteredFeature - keep it so the table data remains visible
 
       // Ensure layer is visible for highlighting
       const layerName =
@@ -821,7 +961,6 @@ export default function App() {
                     // Feature loading is now handled by useEffect hook
                     if (luFeatures.length === 0 && visibleLayers.has("lu")) {
                       // The useEffect hook will handle loading the features
-                      console.log("LU features will be loaded by useEffect hook");
                     }
                   } else {
                     if (activeTool === "lu-select") setActiveTool(null);
@@ -1101,13 +1240,8 @@ export default function App() {
                 onToggleHighlightPolygons={toggleHighlightPolygons}
                 selectedAttributeRow={selectedAttributeRow}
                 onAttributeRowSelect={handleAttributeRowSelect}
+                activeInfoMode={activeInfoMode}
                 onZoomToFeature={(row, type) => {
-                  console.log(
-                    "onZoomToFeature called with row:",
-                    row,
-                    "type:",
-                    type,
-                  );
                   if (mapRef.current && row) {
                     const map = mapRef.current.getMap();
                     const layerName =
@@ -1124,25 +1258,11 @@ export default function App() {
                       filter: ["==", "id", row.id],
                     });
 
-                    console.log(
-                      "Querying source:",
-                      sourceId,
-                      "sourceLayer:",
-                      sourceLayer,
-                      "filter:",
-                      ["==", "id", row.id],
-                    );
-                    console.log("Found features for zoom:", features.length);
                     if (features.length === 0) {
                       // Try alternative query without sourceLayer
-                      console.log("Trying query without sourceLayer...");
                       const altFeatures = map.querySourceFeatures(sourceId, {
                         filter: ["==", "id", row.id],
                       });
-                      console.log(
-                        "Alternative query found features:",
-                        altFeatures.length,
-                      );
                       if (altFeatures.length > 0) {
                         features.splice(0, features.length, ...altFeatures);
                       }
@@ -1150,11 +1270,8 @@ export default function App() {
                     if (features.length > 0) {
                       const feature = features[0];
                       const geometry = feature.geometry as any;
-                      console.log("Object coordinates:", geometry.coordinates);
-
                       if (type === "points") {
                         const coords = geometry.coordinates as [number, number];
-                        console.log("Flying to point:", coords);
                         map.flyTo({
                           center: coords,
                           zoom: 12,
@@ -1169,7 +1286,6 @@ export default function App() {
                         };
                         
                         const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-                        console.log("Calculated bbox:", [minLng, minLat, maxLng, maxLat]);
 
                         map.fitBounds(
                           [
@@ -1183,7 +1299,6 @@ export default function App() {
                         );
                       }
                     } else {
-                      console.log("No features found for zoom");
                     }
                   }
                 }}
@@ -1204,7 +1319,7 @@ export default function App() {
                 coordSystem={coordSystem}
                 onCoordSystemChange={setCoordSystem}
                 zoom={currentZoom}
-                isLoading={isMapRedrawing}
+                isLoading={isMapRedrawing || isFiltering}
               />
             </Panel>
           </PanelGroup>

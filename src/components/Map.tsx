@@ -105,7 +105,14 @@ export const MapView = forwardRef<any, {
 
     const visibleTargetLayers = filteredTargetNames
       .filter(name => visibleLayers.has(name))
-      .map(name => `gdx2.${name}`);
+      .map(name => `gdx2.${name}`)
+      .filter(layerName => {
+        // Check if layer exists and is visible
+        const layer = map.getLayer(layerName);
+        if (!layer) return false;
+        const visibility = map.getLayoutProperty(layerName, 'visibility');
+        return visibility !== 'none';
+      });
 
     if (visibleTargetLayers.length === 0) {
       if (enableHover) onFeaturesHover([]);
@@ -115,14 +122,27 @@ export const MapView = forwardRef<any, {
       return;
     }
 
+    // Query features - don't use filter option to bypass any active filters for hover detection
     const features = map.queryRenderedFeatures(evt.point, {
       layers: visibleTargetLayers,
     }) as unknown as Feature[];
-    if (enableHover) onFeaturesHover(features);
-    if (!rectangleSelection) {
-      map.getCanvas().style.cursor = features.length > 0 ? 'pointer' : '';
+    
+    // If filteredFeature is active, we need to check if the hovered feature matches the filter
+    let filteredFeatures = features;
+    if (filteredFeature) {
+      // Only show features that match the active filter
+      filteredFeatures = features.filter((f: any) => {
+        const featureId = f.properties?.id;
+        const filterId = filteredFeature.row.id;
+        return featureId === filterId || String(featureId) === String(filterId);
+      });
     }
-  }, [mapLoaded, onFeaturesHover, visibleLayers, enableHover, infoMode, onMouseMoveCoords, rectangleSelection, rectangleStart]);
+    
+    if (enableHover) onFeaturesHover(filteredFeatures);
+    if (!rectangleSelection) {
+      map.getCanvas().style.cursor = filteredFeatures.length > 0 ? 'pointer' : '';
+    }
+  }, [mapLoaded, onFeaturesHover, visibleLayers, enableHover, infoMode, onMouseMoveCoords, rectangleSelection, rectangleStart, filteredFeature]);
 
   const onMapClick = useCallback((evt: any) => {
     if (!mapLoaded) return;
@@ -134,14 +154,12 @@ export const MapView = forwardRef<any, {
       if (!rectangleStart) {
         // Start rectangle selection
         setRectangleStart({ lng: evt.lngLat.lng, lat: evt.lngLat.lat });
-        console.log('Rectangle selection started at:', evt.lngLat);
       } else {
         // Complete rectangle selection
         const bounds: [[number, number], [number, number]] = [
           [Math.min(rectangleStart.lng, evt.lngLat.lng), Math.min(rectangleStart.lat, evt.lngLat.lat)],
           [Math.max(rectangleStart.lng, evt.lngLat.lng), Math.max(rectangleStart.lat, evt.lngLat.lat)]
         ];
-        console.log('Rectangle selection completed with bounds:', bounds);
         onRectangleSelect?.(bounds);
         setRectangleStart(null);
         setRectangleCurrent(null);
@@ -151,13 +169,31 @@ export const MapView = forwardRef<any, {
 
     const visibleTargetLayers = targetLayerNames
       .filter(name => visibleLayers.has(name))
-      .map(name => `gdx2.${name}`);
+      .map(name => `gdx2.${name}`)
+      .filter(layerName => {
+        // Check if layer exists and is visible
+        const layer = map.getLayer(layerName);
+        if (!layer) return false;
+        const visibility = map.getLayoutProperty(layerName, 'visibility');
+        return visibility !== 'none';
+      });
 
     const features = map.queryRenderedFeatures(evt.point, {
       layers: visibleTargetLayers,
     }) as unknown as Feature[];
-    onClick(features, { lng: evt.lngLat.lng, lat: evt.lngLat.lat });
-  }, [mapLoaded, visibleLayers, onClick, rectangleSelection, rectangleStart, onRectangleSelect]);
+    
+    // If filteredFeature is active, filter the clicked features
+    let filteredFeatures = features;
+    if (filteredFeature) {
+      filteredFeatures = features.filter((f: any) => {
+        const featureId = f.properties?.id;
+        const filterId = filteredFeature.row.id;
+        return featureId === filterId || String(featureId) === String(filterId);
+      });
+    }
+    
+    onClick(filteredFeatures, { lng: evt.lngLat.lng, lat: evt.lngLat.lat });
+  }, [mapLoaded, visibleLayers, onClick, rectangleSelection, rectangleStart, onRectangleSelect, filteredFeature]);
 
   const updateLayers = useCallback(() => {
     if (!mapLoaded) return;
@@ -180,14 +216,53 @@ export const MapView = forwardRef<any, {
       if (visibleLayers.has(layer.name)) {
         // Add source if not exists
         if (!map.getSource(sourceId)) {
-          // console.log('Adding source', sourceId);
-          map.addSource(sourceId, config.source);
+          try {
+            map.addSource(sourceId, config.source);
+            // Wait for source to load and check available source-layers
+            map.once('sourcedata', (e) => {
+              if (e.sourceId === sourceId && e.isSourceLoaded) {
+                const source = map.getSource(sourceId) as any;
+                if (source && source.vectorLayers) {
+                }
+              }
+            });
+          } catch (error) {
+            console.error('Error adding source', sourceId, error);
+          }
+        } else {
+          // Source exists, check if it's loaded
+          const source = map.getSource(sourceId) as any;
+          if (source && source.vectorLayers) {
+          }
         }
         // Add layer if not exists
         if (!map.getLayer(layerId)) {
-          // console.log('Adding layer', layerId);
-          map.addLayer(config.layer);
-          map.triggerRepaint();
+          // Try to add layer, but if it fails due to source-layer mismatch, try alternative
+          try {
+            map.addLayer(config.layer);
+            map.triggerRepaint();
+          } catch (error: any) {
+            console.error('Error adding layer', layerId, error);
+            // If error is about source-layer, try with full name
+            if (error && error.message && error.message.includes('source-layer')) {
+              const altLayer = { ...config.layer };
+              // Try full name if currently using short name, or vice versa
+              if (altLayer['source-layer'] === layer.name) {
+                altLayer['source-layer'] = `gdx2.${layer.name}`;
+              } else {
+                altLayer['source-layer'] = layer.name;
+              }
+              try {
+                map.addLayer(altLayer);
+                map.triggerRepaint();
+              } catch (altError) {
+                console.error('Failed with alternative source-layer too', altError);
+              }
+            }
+          }
+        } else {
+          // Check if layer is actually visible
+          const layerVisibility = map.getLayoutProperty(layerId, 'visibility');
         }
         // For lu, also add labels (removed - lu_labels requires glyphs)
         // if (layer.name === 'lu') {
@@ -247,7 +322,6 @@ export const MapView = forwardRef<any, {
       } else {
         // Remove layer if exists
         if (map.getLayer(layerId)) {
-          console.log('Removing layer', layerId);
           map.removeLayer(layerId);
         }
         // Remove highlight layer
@@ -454,19 +528,30 @@ export const MapView = forwardRef<any, {
       const layerType = filteredFeature.type === 'points' ? 'stp' : filteredFeature.type === 'lines' ? 'stl' : 'sta';
       const layerName = `gdx2.${layerType}`;
 
-      // Hide all other layers
+      // Hide all other layers and clear their filters
       const allLayerNames = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta', 'gdx2.lu', 'gdx2.field'];
       allLayerNames.forEach(name => {
         if (map.getLayer(name)) {
-          map.setLayoutProperty(name, 'visibility', name === layerName ? 'visible' : 'none');
+          if (name === layerName) {
+            // Make target layer visible
+            map.setLayoutProperty(name, 'visibility', 'visible');
+            // Apply filter to show only the selected feature
+            // Try both string and number comparison for id
+            const idValue = filteredFeature.row.id;
+            const filter = typeof idValue === 'number' 
+              ? ['==', ['get', 'id'], idValue]
+              : ['==', ['get', 'id'], String(idValue)];
+            map.setFilter(name, filter as any);
+          } else {
+            // Hide all other layers
+            map.setLayoutProperty(name, 'visibility', 'none');
+            // Clear any existing filters on hidden layers
+            map.setFilter(name, null);
+          }
         }
       });
 
-      // Apply filter to show only the selected feature using == filter
-      if (map.getLayer(layerName)) {
-        map.setFilter(layerName, ['==', ['get', 'id'], filteredFeature.row.id] as any);
-        map.triggerRepaint();
-      }
+      map.triggerRepaint();
 
       // Zoom to the filtered feature - wait for filter to be applied and features to render
       const zoomToFeature = () => {

@@ -1,10 +1,11 @@
 import type { VectorSourceSpecification, FillLayerSpecification, SymbolLayerSpecification } from 'maplibre-gl';
+import { TILE_SERVER_URL } from '../config';
 
 export const layer_name_lu: string = 'lu';
 
 export const luSource: VectorSourceSpecification = {
   type: 'vector',
-  tiles: [`http://r48-vgeohub01.zsniigg.local:7800/gdx2.lu/{z}/{x}/{y}.pbf`],
+  tiles: [`${TILE_SERVER_URL}/gdx2.lu/{z}/{x}/{y}.pbf`],
   minzoom: 0,
   maxzoom: 22,
 };

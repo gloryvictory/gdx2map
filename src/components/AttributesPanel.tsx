@@ -20,7 +20,7 @@ import {
   ContextMenuTrigger,
 } from './ui/context-menu';
 import { BACKEND_SERVER_URL, RGF_URL } from '../config';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Register all community features
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -47,6 +47,7 @@ interface AttributesPanelProps {
   filteredFeature: FilteredFeature | null;
   onShowBbox: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
   onShowReportCard?: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
+  activeInfoMode?: 'points' | 'lines' | 'polygons' | null;
 }
 
 export function AttributesPanel({
@@ -68,8 +69,21 @@ export function AttributesPanel({
   onClearFilter,
   filteredFeature,
   onShowBbox,
-  onShowReportCard
+  onShowReportCard,
+  activeInfoMode
 }: AttributesPanelProps) {
+  const [activeTab, setActiveTab] = useState<string>('points');
+
+  // Automatically switch tab when activeInfoMode changes
+  useEffect(() => {
+    if (activeInfoMode === 'points') {
+      setActiveTab('points');
+    } else if (activeInfoMode === 'lines') {
+      setActiveTab('lines');
+    } else if (activeInfoMode === 'polygons') {
+      setActiveTab('polygons');
+    }
+  }, [activeInfoMode]);
 
   const fieldDescriptions: Record<string, string> = {
     avts: 'Автор',
@@ -165,7 +179,7 @@ export function AttributesPanel({
   return (
     <div className="bg-background border-t border-border p-4">
       <h3 className="text-lg font-semibold mb-3">Атрибуты</h3>
-      <Tabs defaultValue="points" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="points">Точки ({pointsData.length})</TabsTrigger>
           <TabsTrigger value="lines">Линии ({linesData.length})</TabsTrigger>
