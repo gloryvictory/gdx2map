@@ -1,4 +1,3 @@
-import { MapGeoJSONFeature } from 'maplibre-gl';
 import type { Feature } from '../../types';
 
 interface FeatureTableProps {

@@ -15,10 +15,7 @@ export const LIGHT_MAP_STYLE = {
   }],
   glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
 };
-export const DARK_MAP_STYLE =
-  'https://tiles.basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-export const VOYAGER_MAP_STYLE =
-  'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+
 
 export function createXyzRasterStyle(tiles: string[], attribution?: string) {
   return {
@@ -34,6 +31,13 @@ export function createXyzRasterStyle(tiles: string[], attribution?: string) {
     layers: [{ id: 'raster-tiles', type: 'raster', source: 'raster-tiles' }],
   } as const;
 }
+
+
+
+export const DARK_MAP_STYLE =
+  'https://tiles.basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+export const VOYAGER_MAP_STYLE =
+  'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
 const GOOGLE_SUBS = ['mt0', 'mt1', 'mt2', 'mt3'];
 const googleTiles = (lyrs: string) =>
@@ -59,7 +63,6 @@ export const GOOGLE_TERRAIN_STYLE = createXyzRasterStyle(
 );
 
 export const BASEMAPS = [
-  { key: 'light', label: 'Light (Positron)', url: LIGHT_MAP_STYLE },
   { key: 'dark', label: 'Dark Matter', url: DARK_MAP_STYLE },
   { key: 'voyager', label: 'Voyager', url: VOYAGER_MAP_STYLE },
   { key: 'g-road', label: 'Google Road', url: GOOGLE_ROAD_STYLE },
@@ -69,3 +72,4 @@ export const BASEMAPS = [
 ] as const;
 
 export type BasemapKey = (typeof BASEMAPS)[number]['key'];
+

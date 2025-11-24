@@ -7,11 +7,11 @@ import { LeftPanel } from "./components/LeftPanel";
 import { AttributesPanel } from "./components/AttributesPanel";
 import { LegendPanel } from "./components/LegendPanel";
 import { BottomPanel } from "./components/BottomPanel";
-import { LuSelectPanel } from "./components/LuSelectPanel";
+
 import { Label } from "./components/ui/label";
 import { RadioGroup, RadioGroupItem } from "./components/ui/radio-group";
 import { Checkbox } from "./components/ui/checkbox";
-import { LuSelectButton } from "./components/ui/LuSelectButton";
+
 import {
   Dialog,
   DialogContent,
@@ -397,7 +397,7 @@ export default function App() {
 
 
  // Handle map click when marker attributes mode is active
- const handleMapClickWithMarkerAttributes = (
+const handleMapClickWithMarkerAttributes = (
     features: Feature[],
     lngLat: LngLat,
   ) => {
@@ -427,6 +427,9 @@ export default function App() {
       setClickedFeatures(features);
       if (showMarkerInfo) {
         setMarker(lngLat);
+        // When marker info is active, also update attributes data to show clicked features
+        updateAttributesData(features);
+        setShowAttributes(true);
       }
     }
   };
@@ -924,17 +927,25 @@ export default function App() {
                     setShowRectangleSelection(false);
                     setShowLuSelect(false);
                     setActiveInfoMode(null);
-                    // Clear attributes data and hide attributes panel
-                    setAttributesPointsData([]);
-                    setAttributesLinesData([]);
-                    setAttributesPolygonsData([]);
-                    setShowAttributes(false);
+                    // Don't clear attributes data when activating marker info
+                    // Only clear if there are no clicked features to preserve
+                    if (clickedFeatures.length === 0) {
+                      setAttributesPointsData([]);
+                      setAttributesLinesData([]);
+                      setAttributesPolygonsData([]);
+                    }
+                    // Don't hide attributes panel when activating marker info
+                    // Only show it if there are features to display
+                    if (clickedFeatures.length > 0) {
+                      setShowAttributes(true);
+                    }
                     setSelectedAttributeRow(null);
                     setFilteredFeature(null);
-                    // Clear selected objects on map
+                    // Clear selected objects on map (but keep clicked features for marker info)
                     setSelectedFeature(null);
                     setHoveredFeature(null);
-                    setClickedFeatures([]);
+                    // Don't clear clickedFeatures as they're needed for marker info
+                    // setClickedFeatures([]);
                     setMarker(null);
                     // Also clear any highlighting
                     setHighlightedPoints(new Set());

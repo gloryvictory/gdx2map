@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import proj4 from 'proj4';
 
 export function BottomPanel({

@@ -1,6 +1,5 @@
-import { useState, useEffect, useId } from 'react';
+import { useEffect } from 'react';
 import { Feature } from '../types';
-import { FeatureTable } from './map/FeatureTable';
 import { LuMarkerPanel } from './LuMarkerPanel';
 
 interface LuSelectPanelProps {

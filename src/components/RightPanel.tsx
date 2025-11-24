@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { MapPin, BookDashed, Route, Square, Flag, FileSpreadsheet, Database, Target, MousePointer } from 'lucide-react';
+import { MapPin, BookDashed, Route, Square, Flag, FileSpreadsheet, Target, MousePointer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import {

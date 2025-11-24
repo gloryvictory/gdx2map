@@ -28,6 +28,13 @@ function buildFromServices(): BasemapEntry[] {
     for (const cat of categories) {
       for (const t of (cat.tms ?? []) as TmsEntry[]) {
         if (t.type !== 'xyz' || !t.url) continue;
+        
+        // Исключаем нежелательные карты
+        if ((cat.name === 'Here' && t.title === 'Ландшафт (англ)') ||
+            (cat.name === 'TomTom' && t.title === 'Пробки')) {
+          continue;
+        }
+        
         const tiles = expandBracketHost(convertTemplate(String(t.url)));
         const style = createXyzRasterStyle(tiles, t.title ?? cat.name);
         list.push({
