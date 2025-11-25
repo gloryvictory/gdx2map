@@ -24,10 +24,10 @@ interface RightPanelProps {
   onSetActiveInfoMode: (mode: 'points' | 'lines' | 'polygons' | null) => void;
   showMarkerInfo: boolean;
   onToggleMarkerInfo: (show: boolean) => void;
-  showMarkerAttributes: boolean;
+ showMarkerAttributes: boolean;
  showLuSelect: boolean;
   onToggleLuSelect: (show: boolean) => void;
-  luFeatures: Feature[];
+ luFeatures: Feature[];
  selectedLu: Feature | null;
   onLuSelect: (lu: Feature | null, showInfo?: boolean) => void;
   onExportLuToExcel: (lu: Feature) => void;
@@ -40,6 +40,8 @@ interface RightPanelProps {
  showRectangleSelection: boolean;
   onSetRectangleSelection: (enabled: boolean) => void;
   visibleLayers: Set<string>;
+  onClearSelectedFeatures: () => void;
+  onClearMapSelections: () => void;
 }
 
 function exportToExcel(features: Feature[]) {
@@ -115,7 +117,7 @@ function exportToExcel(features: Feature[]) {
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, onExportLuToExcel, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, onExportLuToExcel, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers, onClearSelectedFeatures, onClearMapSelections }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0) || showLuSelect;
 // isInfoPanelOpen ? 60 : 80
@@ -128,7 +130,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
       <Panel minSize={0} defaultSize={isInfoPanelOpen ? 20 : 0} className="bg-background">
         <div className="h-full flex flex-col">
           {showMarkerInfo && (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               <div className="sticky top-0 bg-background z-10 pb-3">
                 <h3 className="text-sm font-medium mb-3 bg-blue-100 p-2 rounded">Информация под маркером</h3>
                 <div className="flex gap-2 px-3">
@@ -164,7 +166,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
             </div>
           )}
           {activeInfoMode && (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               <div className="sticky top-0 bg-background z-10 pb-3">
                 <h3 className="text-sm font-medium mb-3 bg-gray-100 p-2 rounded">
                   Информация под курсором - {activeInfoMode === 'points' ? 'точки' : activeInfoMode === 'lines' ? 'линии' : 'полигоны'}
@@ -234,6 +236,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onToggleMarkerInfo(false);
                       onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
+                      onClearMapSelections();
                     }
                   }}
                   className="w-10 h-10"
@@ -259,6 +262,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onToggleMarkerInfo(false);
                       onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
+                      onClearMapSelections();
                     }
                   }}
                   className="w-10 h-10"
@@ -284,6 +288,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onToggleMarkerInfo(false);
                       onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
+                      onClearMapSelections();
                     }
                   }}
                   className="w-10 h-10"
@@ -308,6 +313,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onSetActiveInfoMode(null);
                       onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
+                      onClearMapSelections();
                     }
                   }}
                   className="w-10 h-10"
@@ -330,6 +336,8 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                     onSetActiveInfoMode(null);
                     onToggleMarkerInfo(false);
                     onSetRectangleSelection(false);
+                    // For marker attributes, we clear selected features but preserve the attributes panel functionality
+                    onClearSelectedFeatures();
                   }}
                   className="w-10 h-10"
                 >
@@ -354,6 +362,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onSetActiveInfoMode(null);
                       onToggleMarkerInfo(false);
                       // Note: showMarkerAttributes is handled in App.tsx
+                      onClearMapSelections();
                     }
                   }}
                   className="w-10 h-10"
@@ -380,6 +389,7 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                       onToggleMarkerInfo(false);
                       onSetRectangleSelection(false);
                       // Note: showMarkerAttributes is handled in App.tsx
+                      onClearMapSelections();
                     }
                   }}
                   className="w-10 h-10"

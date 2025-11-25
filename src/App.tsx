@@ -47,6 +47,7 @@ export default function App() {
   const [clickedFeatures, setClickedFeatures] = useState<Feature[]>([]);
   const [showLuSelect, setShowLuSelect] = useState(false);
   const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
+  const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
   const [marker, setMarker] = useState<LngLat | null>(null);
   const [markerLuName, setMarkerLuName] = useState<string | null>(null);
   const [showFeatureTable, setShowFeatureTable] = useState(false);
@@ -100,6 +101,7 @@ export default function App() {
     maxLng: number;
     maxLat: number;
   } | null>(null);
+  const [isLuSearching, setIsLuSearching] = useState(false);
  const mapRef = useRef<any>(null);
 
   useEffect(() => {
@@ -166,6 +168,24 @@ export default function App() {
     return found ? found.url : LIGHT_MAP_STYLE;
   }, [basemapKey]);
 
+  const clearSelectedFeatures = () => {
+    setSelectedFeature(null);
+    setHoveredFeature(null);
+    setSelectedAttributeRow(null);
+    setHighlightedPoints(new Set());
+    setHighlightedLines(new Set());
+    setHighlightedPolygons(new Set());
+  };
+
+  const clearMapSelections = () => {
+    // Clear only map selections, but preserve attribute panel data
+    setSelectedFeature(null);
+    setHoveredFeature(null);
+    setHighlightedPoints(new Set());
+    setHighlightedLines(new Set());
+    setHighlightedPolygons(new Set());
+  };
+
   const handleLayersClick = () => {
     if (showLayers) {
       setShowLayers(false);
@@ -175,7 +195,7 @@ export default function App() {
       setShowLegend(false);
       setShowAttributes(false);
     }
-  };
+ };
 
   const handleBaseMapsClick = () => {
     if (showBaseMaps) {
@@ -228,75 +248,83 @@ export default function App() {
   };
 
   // Handle mouse move to update hovered feature when in info mode
-  useEffect(() => {
-    if (activeInfoMode && hoveredFeatures.length > 0) {
-      // When in info mode, set the first hovered feature as the hovered feature for highlighting
-      const firstHoveredFeature = hoveredFeatures[0];
-      setHoveredFeature(firstHoveredFeature);
-      
-      // Always update attributes data when hovering, even if there's a selectedAttributeRow
-      // This allows hover to work even after selecting a row in the table
-      const points: ReportRow[] = [];
-      const lines: ReportRow[] = [];
-      const polygons: ReportRow[] = [];
+   useEffect(() => {
+     if (activeInfoMode && hoveredFeatures.length > 0) {
+       // When in info mode, set the first hovered feature as the hovered feature for highlighting
+       const firstHoveredFeature = hoveredFeatures[0];
+       setHoveredFeature(firstHoveredFeature);
+       
+       // According to requirements, don't update attributes data when using "Info under marker"
+       // Only update if we're not in marker info mode
+       if (!showMarkerInfo) {
+         // Always update attributes data when hovering, even if there's a selectedAttributeRow
+         // This allows hover to work even after selecting a row in the table
+         const points: ReportRow[] = [];
+         const lines: ReportRow[] = [];
+         const polygons: ReportRow[] = [];
 
-      hoveredFeatures.forEach((feature) => {
-        const type = feature.layer.id.split(".")[1];
-        if (type === "stp") {
-          points.push(feature.properties);
-        } else if (type === "stl") {
-          lines.push(feature.properties);
-        } else if (type === "sta") {
-          polygons.push(feature.properties);
-        }
-      });
+         hoveredFeatures.forEach((feature) => {
+           const type = feature.layer.id.split(".")[1];
+           if (type === "stp") {
+             points.push(feature.properties);
+           } else if (type === "stl") {
+             lines.push(feature.properties);
+           } else if (type === "sta") {
+             polygons.push(feature.properties);
+           }
+         });
 
-      setAttributesPointsData(points);
-      setAttributesLinesData(lines);
-      setAttributesPolygonsData(polygons);
-      
-      // If we have a selected feature and we're hovering over a different feature, clear the selection
-      if (selectedFeature && selectedFeature.properties.id !== firstHoveredFeature.properties.id) {
-        setSelectedFeature(null);
-      }
-    } else if (activeInfoMode && hoveredFeatures.length === 0 && selectedFeature) {
-      // When in info mode but not hovering over any features, but we have a selected feature
-      // Keep showing the selected feature's data in the panel
-      const points: ReportRow[] = [];
-      const lines: ReportRow[] = [];
-      const polygons: ReportRow[] = [];
+         setAttributesPointsData(points);
+         setAttributesLinesData(lines);
+         setAttributesPolygonsData(polygons);
+       }
+       
+       // If we have a selected feature and we're hovering over a different feature, clear the selection
+       if (selectedFeature && selectedFeature.properties.id !== firstHoveredFeature.properties.id) {
+         setSelectedFeature(null);
+       }
+     } else if (activeInfoMode && hoveredFeatures.length === 0 && selectedFeature) {
+       // When in info mode but not hovering over any features, but we have a selected feature
+       // Keep showing the selected feature's data in the panel
+       // But only if we're not in marker info mode
+       if (!showMarkerInfo) {
+         const points: ReportRow[] = [];
+         const lines: ReportRow[] = [];
+         const polygons: ReportRow[] = [];
 
-      // Only add the selected feature to the appropriate array
-      const type = selectedFeature.layer.id.split(".")[1];
-      if (type === "stp") {
-        points.push(selectedFeature.properties);
-      } else if (type === "stl") {
-        lines.push(selectedFeature.properties);
-      } else if (type === "sta") {
-        polygons.push(selectedFeature.properties);
-      }
+         // Only add the selected feature to the appropriate array
+         const type = selectedFeature.layer.id.split(".")[1];
+         if (type === "stp") {
+           points.push(selectedFeature.properties);
+         } else if (type === "stl") {
+           lines.push(selectedFeature.properties);
+         } else if (type === "sta") {
+           polygons.push(selectedFeature.properties);
+         }
 
-      setAttributesPointsData(points);
-      setAttributesLinesData(lines);
-      setAttributesPolygonsData(polygons);
-      // Only set hoveredFeature to null if it's different from selectedFeature
-      if (hoveredFeature?.properties.id !== selectedFeature.properties.id) {
-        setHoveredFeature(null);
-      }
-    } else if (activeInfoMode && hoveredFeatures.length === 0 && !selectedFeature) {
-      // When in info mode but not hovering over any features and no selected feature
-      // Don't clear data if there's a selectedAttributeRow - keep the table data
-      if (!selectedAttributeRow) {
-        setAttributesPointsData([]);
-        setAttributesLinesData([]);
-        setAttributesPolygonsData([]);
-      }
-      // Only set hoveredFeature to null if there's no selected feature
-      if (hoveredFeature && !selectedFeature) {
-        setHoveredFeature(null);
-      }
-    }
- }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedAttributeRow]);
+         setAttributesPointsData(points);
+         setAttributesLinesData(lines);
+         setAttributesPolygonsData(polygons);
+       }
+       // Only set hoveredFeature to null if it's different from selectedFeature
+       if (hoveredFeature?.properties.id !== selectedFeature.properties.id) {
+         setHoveredFeature(null);
+       }
+     } else if (activeInfoMode && hoveredFeatures.length === 0 && !selectedFeature) {
+       // When in info mode but not hovering over any features and no selected feature
+       // Don't clear data if there's a selectedAttributeRow - keep the table data
+       // But don't clear if we're in marker info mode
+       if (!selectedAttributeRow && !showMarkerInfo) {
+         setAttributesPointsData([]);
+         setAttributesLinesData([]);
+         setAttributesPolygonsData([]);
+       }
+       // Only set hoveredFeature to null if there's no selected feature
+       if (hoveredFeature && !selectedFeature) {
+         setHoveredFeature(null);
+       }
+     }
+  }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedAttributeRow, showMarkerInfo]);
 
 
   const updateAttributesData = (features: Feature[]) => {
@@ -389,11 +417,18 @@ export default function App() {
       // Clear any existing clicked features to allow fresh selection
       setClickedFeatures([]);
       setMarker(null);
-      // Transfer clicked features to attributes data (will be empty initially)
-      updateAttributesData([]);
-      setShowAttributes(true);
+      // Do not clear attributes data when activating marker attributes - let user see existing data until they click
+      // setShowAttributes(true);
+      // Clear selected features but preserve the attributes panel functionality
+      setSelectedFeature(null);
+      setSelectedAttributeRow(null);
+      setHoveredFeature(null);
+      // Also clear any highlighting
+      setHighlightedPoints(new Set());
+      setHighlightedLines(new Set());
+      setHighlightedPolygons(new Set());
     }
- };
+  };
 
 
  // Handle map click when marker attributes mode is active
@@ -403,9 +438,11 @@ const handleMapClickWithMarkerAttributes = (
   ) => {
     if (showMarkerAttributes) {
       // Update clicked features and transfer to attributes
+      // But according to requirements, don't update attributes panel when using "Info under marker"
       setClickedFeatures(features);
       updateAttributesData(features);
       setMarker(lngLat);
+      // Show attributes panel when using marker attributes
       setShowAttributes(true);
     } else if (activeInfoMode) {
       // When info mode is active, clicking on a feature should select it
@@ -415,8 +452,12 @@ const handleMapClickWithMarkerAttributes = (
         // Set it as the hovered feature as well for highlighting
         setHoveredFeature(features[0]);
         // Update attributes data to show only the selected feature
-        updateAttributesData([features[0]]);
-        setShowAttributes(true);
+        // But according to requirements, don't update if we're in marker info mode
+        if (!showMarkerInfo) {
+          updateAttributesData([features[0]]);
+        }
+        // According to requirements, don't show attributes panel when using "Info under marker"
+        // setShowAttributes(true);
       } else {
         // If clicked on empty space, deselect any selected feature
         setSelectedFeature(null);
@@ -428,11 +469,12 @@ const handleMapClickWithMarkerAttributes = (
       if (showMarkerInfo) {
         setMarker(lngLat);
         // When marker info is active, also update attributes data to show clicked features
-        updateAttributesData(features);
-        setShowAttributes(true);
+        // But according to requirements, we should NOT update attributes panel when using "Info under marker"
+        // updateAttributesData(features);
+        // setShowAttributes(true);
       }
     }
-  };
+ };
 
   // Load LU features when LU layer becomes visible and we're in LU select mode
   useEffect(() => {
@@ -454,12 +496,12 @@ const handleMapClickWithMarkerAttributes = (
                   sourceLayer: sourceLayer,
                 });
                 features = sourceFeatures as Feature[];
-              } catch (sourceError) {
+              } catch {
                 // If source query fails, try without sourceLayer
                 try {
                   const sourceFeatures = map.querySourceFeatures(sourceId);
                   features = sourceFeatures as Feature[];
-                } catch (altError) {
+                } catch {
                   // Fallback to rendered features if source query fails
                   const renderedFeatures = map.queryRenderedFeatures({ layers: ["gdx2.lu"] });
                   features = renderedFeatures as Feature[];
@@ -914,6 +956,7 @@ const handleMapClickWithMarkerAttributes = (
                     setShowRectangleSelection(false);
                     setShowLuSelect(false);
                     setActiveTool("hover-info");
+                    clearMapSelections();
                   } else if (!mode && activeTool === "hover-info") {
                     setActiveTool(null);
                   }
@@ -929,16 +972,17 @@ const handleMapClickWithMarkerAttributes = (
                     setActiveInfoMode(null);
                     // Don't clear attributes data when activating marker info
                     // Only clear if there are no clicked features to preserve
-                    if (clickedFeatures.length === 0) {
-                      setAttributesPointsData([]);
-                      setAttributesLinesData([]);
-                      setAttributesPolygonsData([]);
-                    }
+                    // According to requirements, we should not populate attributes panel when using "Info under marker"
+                    setAttributesPointsData([]);
+                    setAttributesLinesData([]);
+                    setAttributesPolygonsData([]);
                     // Don't hide attributes panel when activating marker info
                     // Only show it if there are features to display
-                    if (clickedFeatures.length > 0) {
-                      setShowAttributes(true);
-                    }
+                    // But don't show if we're only using marker info without attributes
+                    // According to requirements, don't show attributes panel when using "Info under marker"
+                    // if (clickedFeatures.length > 0) {
+                    //   setShowAttributes(true);
+                    // }
                     setSelectedAttributeRow(null);
                     setFilteredFeature(null);
                     // Clear selected objects on map (but keep clicked features for marker info)
@@ -951,9 +995,16 @@ const handleMapClickWithMarkerAttributes = (
                     setHighlightedPoints(new Set());
                     setHighlightedLines(new Set());
                     setHighlightedPolygons(new Set());
+                    clearSelectedFeatures();
                   } else {
                     if (activeTool === "info" || activeTool === "hover-info") setActiveTool(null);
                     setShowMarkerInfo(false);
+                    // When turning off marker info, we should clear the attributes data if there was no selected attribute row
+                    if (!selectedAttributeRow) {
+                      setAttributesPointsData([]);
+                      setAttributesLinesData([]);
+                      setAttributesPolygonsData([]);
+                    }
                   }
                 }}
                 showMarkerAttributes={showMarkerAttributes}
@@ -973,6 +1024,7 @@ const handleMapClickWithMarkerAttributes = (
                     if (luFeatures.length === 0 && visibleLayers.has("lu")) {
                       // The useEffect hook will handle loading the features
                     }
+                    clearMapSelections();
                   } else {
                     if (activeTool === "lu-select") setActiveTool(null);
                     setShowLuSelect(false);
@@ -980,11 +1032,11 @@ const handleMapClickWithMarkerAttributes = (
                   }
                 }}
                 luFeatures={luFeatures}
-                selectedLu={selectedFeature}
+                selectedLu={selectedLu}
                 onLuSelect={(lu, showInfo = true) => {
                   if (lu) {
                     // Check if this is a marker placement action (same LU selected)
-                    if (selectedFeature && selectedFeature.properties.id === lu.properties.id) {
+                    if (selectedLu && selectedLu.properties.id === lu.properties.id) {
                       // Place marker at the center of the LU
                       const geometry = lu.geometry;
                       let centerLngLat: LngLat | null = null;
@@ -1025,11 +1077,17 @@ const handleMapClickWithMarkerAttributes = (
                     } else {
                       // Different LU selected - reset marker and set new LU
                       setMarker(null);
-                      // Regular LU selection - update selected LU and highlighting
-                      setSelectedFeature(lu);
-                      // When LU is selected, also select it as a feature to trigger highlighting
-                      setSelectedFeature(lu);
+                      // Update selected LU
+                      setSelectedLu(lu);
                       setSelectedAttributeRow(null);
+                      
+                      // Clear previous attribute data before loading new data
+                      setAttributesPolygonsData([]);
+                      setAttributesLinesData([]);
+                      setAttributesPointsData([]);
+                      
+                      // Set loading state
+                      setIsLuSearching(true);
                       
                       // Additionally, zoom to the LU using its bbox if selected
                       if (mapRef.current && lu.geometry) {
@@ -1056,7 +1114,7 @@ const handleMapClickWithMarkerAttributes = (
                         });
                         
                         // Query features within the LU area and populate attribute tables
-                        setTimeout(() => {
+                        const searchFeatures = (retryCount = 0) => {
                           if (mapRef.current) {
                             const map = mapRef.current.getMap();
                             
@@ -1090,6 +1148,12 @@ const handleMapClickWithMarkerAttributes = (
                             const filteredStl = filterFeaturesInLu(stlFeatures);
                             const filteredStp = filterFeaturesInLu(stpFeatures);
                             
+                            // If no features found and we haven't reached max retries, wait and try again
+                            if ((filteredSta.length === 0 && filteredStp.length === 0 && filteredStl.length === 0) && retryCount < 3) {
+                              setTimeout(() => searchFeatures(retryCount + 1), 200);
+                              return;
+                            }
+                            
                             // Update attribute tables
                             setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
                             setAttributesLinesData(filteredStl.map((f: any) => f.properties));
@@ -1098,22 +1162,27 @@ const handleMapClickWithMarkerAttributes = (
                             // Show attributes panel
                             setShowAttributes(true);
                           }
-                        }, 100);
+                          // End loading state
+                          setIsLuSearching(false);
+                        };
+                        
+                        // Start searching immediately, with retry logic
+                        setTimeout(() => searchFeatures(0), 100);
                       } else {
-                        // If lu is null, clear the attribute tables
-                        setAttributesPolygonsData([]);
-                        setAttributesLinesData([]);
-                        setAttributesPointsData([]);
+                        // End loading state if no geometry
+                        setIsLuSearching(false);
                       }
                     }
                   } else {
                     // Deselect LU
-                    setSelectedFeature(null);
+                    setSelectedLu(null);
                     setMarker(null);
                     setMarkerLuName(null);
                     setAttributesPolygonsData([]);
                     setAttributesLinesData([]);
                     setAttributesPointsData([]);
+                    // End loading state
+                    setIsLuSearching(false);
                   }
                 }}
                 onExportLuToExcel={(lu) => {
@@ -1145,12 +1214,15 @@ const handleMapClickWithMarkerAttributes = (
                     setShowMarkerAttributes(false);
                     setShowLuSelect(false);
                     setActiveInfoMode(null);
+                    clearMapSelections();
                   } else {
                     if (activeTool === "rectangle") setActiveTool(null);
                     setShowRectangleSelection(false);
                   }
                 }}
                 visibleLayers={visibleLayers}
+                onClearSelectedFeatures={clearSelectedFeatures}
+                onClearMapSelections={clearMapSelections}
               >
                 <MapView
                   ref={mapRef}
@@ -1330,7 +1402,7 @@ const handleMapClickWithMarkerAttributes = (
                 coordSystem={coordSystem}
                 onCoordSystemChange={setCoordSystem}
                 zoom={currentZoom}
-                isLoading={isMapRedrawing || isFiltering}
+                isLoading={isMapRedrawing || isFiltering || isLuSearching}
               />
             </Panel>
           </PanelGroup>

@@ -362,7 +362,7 @@ export const MapView = forwardRef<any, {
 
     // Add selected feature highlight layer
     const selectedLayerId = 'selected-feature-highlight';
-    if (selectedFeature) {
+    if (selectedFeature && selectedFeature.layer && selectedFeature.layer.id && selectedFeature.properties) {
       if (!map.getLayer(selectedLayerId)) {
         const layerType = selectedFeature.layer.id.split('.')[1];
         const config = layersConfig[layerType];
@@ -401,7 +401,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(selectedLayerId);
       }
     }
-  }, [selectedFeature, mapLoaded]);
+ }, [selectedFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -410,7 +410,7 @@ export const MapView = forwardRef<any, {
 
     // Add hover highlight layer
     const hoverLayerId = 'hover-feature-highlight';
-    if (hoveredFeature) {
+    if (hoveredFeature && hoveredFeature.layer.id && hoveredFeature.properties) {
       if (!map.getLayer(hoverLayerId)) {
         const layerType = hoveredFeature.layer.id.split('.')[1];
         const config = layersConfig[layerType];
@@ -447,7 +447,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(hoverLayerId);
       }
     }
-  }, [hoveredFeature, mapLoaded]);
+ }, [hoveredFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -456,7 +456,7 @@ export const MapView = forwardRef<any, {
 
     // Add selected attribute row highlight layer
     const selectedAttributeLayerId = 'selected-attribute-highlight';
-    if (selectedAttributeRow) {
+    if (selectedAttributeRow && selectedAttributeRow.data && selectedAttributeRow.data.id) {
       if (!map.getLayer(selectedAttributeLayerId)) {
         const layerType = selectedAttributeRow.type === 'points' ? 'stp' : selectedAttributeRow.type === 'lines' ? 'stl' : 'sta';
         const config = layersConfig[layerType];
@@ -495,10 +495,10 @@ export const MapView = forwardRef<any, {
         map.removeLayer(selectedAttributeLayerId);
       }
     }
-  }, [selectedAttributeRow, mapLoaded]);
+ }, [selectedAttributeRow, mapLoaded]);
 
   useEffect(() => {
-    if (!mapLoaded || !selectedFeature) return;
+    if (!mapLoaded || !selectedFeature || !selectedFeature.geometry) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
 
