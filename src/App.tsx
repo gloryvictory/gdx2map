@@ -47,6 +47,7 @@ export default function App() {
   const [clickedFeatures, setClickedFeatures] = useState<Feature[]>([]);
   const [showLuSelect, setShowLuSelect] = useState(false);
   const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
+  const [displayLuFeatures, setDisplayLuFeatures] = useState<Feature[]>([]);
   const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
   const [marker, setMarker] = useState<LngLat | null>(null);
   const [markerLuName, setMarkerLuName] = useState<string | null>(null);
@@ -477,63 +478,74 @@ const handleMapClickWithMarkerAttributes = (
  };
 
   // Load LU features when LU layer becomes visible and we're in LU select mode
-  useEffect(() => {
-    if (showLuSelect && visibleLayers.has("lu")) {
-      // Load LU features with a delay to ensure map is ready
-      const loadLuFeatures = () => {
-        if (mapRef.current) {
-          const map = mapRef.current.getMap();
-          if (map && map.isStyleLoaded()) {
-            try {
-              // Query all source features from the LU layer (not just rendered ones)
-              const sourceId = "gdx2.lu";
-              const sourceLayer = "gdx2.lu";
-              
-              // First try to query source features
-              let features: Feature[] = [];
+    const [originalLuFeatures, setOriginalLuFeatures] = useState<Feature[]>([]);
+    
+    // Separate effect for loading LU features only when LU selection panel is opened
+    useEffect(() => {
+      if (showLuSelect && visibleLayers.has("lu")) {
+        // Load LU features with a delay to ensure map is ready
+        const loadLuFeatures = () => {
+          if (mapRef.current) {
+            const map = mapRef.current.getMap();
+            if (map && map.isStyleLoaded()) {
               try {
-                const sourceFeatures = map.querySourceFeatures(sourceId, {
-                  sourceLayer: sourceLayer,
-                });
-                features = sourceFeatures as Feature[];
-              } catch {
-                // If source query fails, try without sourceLayer
+                // Query all source features from the LU layer (not just rendered ones)
+                const sourceId = "gdx2.lu";
+                const sourceLayer = "gdx2.lu";
+                
+                // First try to query source features
+                let features: Feature[] = [];
                 try {
-                  const sourceFeatures = map.querySourceFeatures(sourceId);
+                  const sourceFeatures = map.querySourceFeatures(sourceId, {
+                    sourceLayer: sourceLayer,
+                  });
                   features = sourceFeatures as Feature[];
                 } catch {
-                  // Fallback to rendered features if source query fails
-                  const renderedFeatures = map.queryRenderedFeatures({ layers: ["gdx2.lu"] });
-                  features = renderedFeatures as Feature[];
+                  // If source query fails, try without sourceLayer
+                  try {
+                    const sourceFeatures = map.querySourceFeatures(sourceId);
+                    features = sourceFeatures as Feature[];
+                  } catch {
+                    // Fallback to rendered features if source query fails
+                    const renderedFeatures = map.queryRenderedFeatures({ layers: ["gdx2.lu"] });
+                    features = renderedFeatures as Feature[];
+                  }
                 }
-              }
-              
-              if (features.length > 0) {
-                setLuFeatures(features);
-              } else {
-                // If no features found, try again after a delay (maybe layer is still loading)
+                
+                if (features.length > 0) {
+                  setLuFeatures(features);
+                  setOriginalLuFeatures(features); // Store original list
+                } else {
+                  // If no features found, try again after a delay (maybe layer is still loading)
+                  setTimeout(loadLuFeatures, 500);
+                }
+              } catch (e) {
+                console.error("Error loading LU features:", e);
+                // Retry after delay
                 setTimeout(loadLuFeatures, 500);
               }
-            } catch (e) {
-              console.error("Error loading LU features:", e);
-              // Retry after delay
-              setTimeout(loadLuFeatures, 500);
+            } else {
+              // If map is not ready, try again after a short delay
+              setTimeout(loadLuFeatures, 200);
             }
-          } else {
-            // If map is not ready, try again after a short delay
-            setTimeout(loadLuFeatures, 200);
           }
-        }
-      };
-      
-      // Start loading after a small delay
-      const timer = setTimeout(loadLuFeatures, 300);
-      return () => clearTimeout(timer);
-    } else if (!showLuSelect) {
-      // Clear LU features when panel is closed
-      setLuFeatures([]);
-    }
-  }, [showLuSelect, visibleLayers]);
+        };
+        
+        // Start loading after a small delay
+        const timer = setTimeout(loadLuFeatures, 300);
+        return () => clearTimeout(timer);
+      } else if (!showLuSelect) {
+        // Clear LU features when panel is closed, but preserve original for later use
+        setLuFeatures([]);
+      }
+    }, [showLuSelect]); // Remove visibleLayers from dependency to prevent reloading when layer visibility changes
+    
+    // Update displayLuFeatures when originalLuFeatures changes, but only when showLuSelect is true
+    useEffect(() => {
+      if (showLuSelect && originalLuFeatures.length > 0) {
+        setDisplayLuFeatures(originalLuFeatures);
+      }
+    }, [originalLuFeatures, showLuSelect]);
 
   const handleFilterToFeature = (
     row: ReportRow,
@@ -1019,19 +1031,32 @@ const handleMapClickWithMarkerAttributes = (
                     setActiveInfoMode(null);
                     // Clear any existing clicked features to allow fresh selection
                     setClickedFeatures([]);
+                    // Temporarily ensure LU layer is visible for loading features
+                    if (!visibleLayers.has("lu")) {
+                      setVisibleLayers(prev => new Set(prev).add("lu"));
+                    }
                     // Load LU features if not already loaded
                     // Feature loading is now handled by useEffect hook
                     if (luFeatures.length === 0 && visibleLayers.has("lu")) {
                       // The useEffect hook will handle loading the features
+                    }
+                    // Restore original LU features when opening the panel
+                    if (originalLuFeatures.length > 0) {
+                      setLuFeatures(originalLuFeatures);
+                      setDisplayLuFeatures(originalLuFeatures); // Also update display features
+                    } else if (luFeatures.length > 0) {
+                      setDisplayLuFeatures(luFeatures); // Use current features if original not available
                     }
                     clearMapSelections();
                   } else {
                     if (activeTool === "lu-select") setActiveTool(null);
                     setShowLuSelect(false);
                     setSelectedFeature(null);
+                    // Clear display features when closing LU selection panel to avoid showing stale data
+                    setDisplayLuFeatures([]);
                   }
                 }}
-                luFeatures={luFeatures}
+                luFeatures={displayLuFeatures}
                 selectedLu={selectedLu}
                 onLuSelect={(lu, showInfo = true) => {
                   if (lu) {
