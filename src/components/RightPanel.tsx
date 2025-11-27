@@ -7,50 +7,54 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
+ TooltipTrigger,
 } from './ui/tooltip';
 import { FeatureTable } from './map/FeatureTable';
 import { LuSelectPanel } from './LuSelectPanel';
 
-import type { Feature, SelectedAttributeRow } from '../types';
+import type { Feature, SelectedAttributeRow, FilteredFeature } from '../types';
 
 interface RightPanelProps {
   hoveredFeatures: Feature[];
- clickedFeatures: Feature[];
+  clickedFeatures: Feature[];
   children: React.ReactNode;
   showFeatureTable: boolean;
  onToggleFeatureTable: (show: boolean) => void;
-  activeInfoMode: 'points' | 'lines' | 'polygons' | null;
+ activeInfoMode: 'points' | 'lines' | 'polygons' | null;
   onSetActiveInfoMode: (mode: 'points' | 'lines' | 'polygons' | null) => void;
   showMarkerInfo: boolean;
   onToggleMarkerInfo: (show: boolean) => void;
- showMarkerAttributes: boolean;
- showLuSelect: boolean;
-  onToggleLuSelect: (show: boolean) => void;
+  showMarkerAttributes: boolean;
+  showLuSelect: boolean;
+ onToggleLuSelect: (show: boolean) => void;
  luFeatures: Feature[];
- selectedLu: Feature | null;
+  selectedLu: Feature | null;
   onLuSelect: (lu: Feature | null, showInfo?: boolean) => void;
   onExportLuToExcel: (lu: Feature) => void;
  showAttributes: boolean;
   onToggleAttributes: (show: boolean) => void;
   selectedFeature: Feature | null;
   onFeatureSelect: (feature: Feature | null) => void;
- onFeatureHover: (feature: Feature | null) => void;
+  onFeatureHover: (feature: Feature | null) => void;
   onMarkerAttributesClick: () => void;
- showRectangleSelection: boolean;
-  onSetRectangleSelection: (enabled: boolean) => void;
-  visibleLayers: Set<string>;
+  showRectangleSelection: boolean;
+ onSetRectangleSelection: (enabled: boolean) => void;
+ visibleLayers: Set<string>;
   onClearSelectedFeatures: () => void;
   onClearMapSelections: () => void;
+  filteredFeature?: FilteredFeature | null;
+  onFilterToFeature?: (row: any, type: 'points' | 'lines' | 'polygons') => void;
+  onClearFilter?: (type: 'points' | 'lines' | 'polygons') => void;
+  onShowBbox?: (row: any, type: 'points' | 'lines' | 'polygons') => void;
 }
 
 function exportToExcel(features: Feature[]) {
-  if (features.length === 0) return;
+ if (features.length === 0) return;
 
   const workbook = XLSX.utils.book_new();
 
   // Field descriptions
-  const fieldDescriptions: Record<string, string> = {
+ const fieldDescriptions: Record<string, string> = {
     avts: 'Автор',
     name_otch: 'Отчет',
     org_isp: 'Организация',
@@ -72,7 +76,7 @@ function exportToExcel(features: Feature[]) {
   };
 
   // Get all unique keys
-  const allKeys = Array.from(new Set(features.flatMap(f => Object.keys(f.properties))));
+ const allKeys = Array.from(new Set(features.flatMap(f => Object.keys(f.properties))));
 
   // Group by type
   const groups = features.reduce((acc, f) => {
@@ -94,7 +98,7 @@ function exportToExcel(features: Feature[]) {
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   });
 
-  // Add "Все" sheet with all features
+ // Add "Все" sheet with all features
   const allDescriptions = [...allKeys.map(key => fieldDescriptions[key] || key), 'Тип'];
   const allData = [
     allDescriptions, // row 1: descriptions
@@ -110,14 +114,14 @@ function exportToExcel(features: Feature[]) {
   const structureData = [
     ['Имя поля', 'Описание'],
     ...allKeys.map(key => [key, fieldDescriptions[key] || ''])
-  ];
+ ];
   const structureWorksheet = XLSX.utils.aoa_to_sheet(structureData);
   XLSX.utils.book_append_sheet(workbook, structureWorksheet, 'Структура');
 
   XLSX.writeFile(workbook, 'export.xlsx');
 }
 
-export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, onExportLuToExcel, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers, onClearSelectedFeatures, onClearMapSelections }: RightPanelProps) {
+export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFeatureTable, onToggleFeatureTable, activeInfoMode, onSetActiveInfoMode, showMarkerInfo, onToggleMarkerInfo, showMarkerAttributes, showLuSelect, onToggleLuSelect, luFeatures, selectedLu, onLuSelect, onExportLuToExcel, showAttributes, onToggleAttributes, selectedFeature, onFeatureSelect, onFeatureHover, onMarkerAttributesClick, showRectangleSelection, onSetRectangleSelection, visibleLayers, onClearSelectedFeatures, onClearMapSelections, filteredFeature, onFilterToFeature, onClearFilter, onShowBbox }: RightPanelProps) {
 
   const isInfoPanelOpen = activeInfoMode !== null || (showMarkerInfo && clickedFeatures.length > 0) || showLuSelect;
 // isInfoPanelOpen ? 60 : 80
@@ -153,11 +157,22 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-              </div>
               <div className="flex-1 overflow-auto px-3 pb-3">
                 {clickedFeatures.length > 0 ? (
                   clickedFeatures.map((feature, index) => (
-                    <FeatureTable key={`clicked-${index}`} feature={feature} index={index} selectedFeature={selectedFeature} onFeatureSelect={onFeatureSelect} onFeatureHover={onFeatureHover} />
+                    <FeatureTable 
+                      key={`clicked-${index}`} 
+                      feature={feature} 
+                      index={index} 
+                      selectedFeature={selectedFeature} 
+                      onFeatureSelect={onFeatureSelect} 
+                      onFeatureHover={onFeatureHover} 
+                      onZoomToFeature={onFeatureSelect} 
+                      onShowBbox={onShowBbox ? (f) => onShowBbox(f.properties, f.layer.id.split('.')[1] as 'points' | 'lines' | 'polygons') : undefined} 
+                      onFilterToFeature={onFilterToFeature ? (row, type) => onFilterToFeature(row, type) : undefined} 
+                      onClearFilter={onClearFilter ? () => onClearFilter(feature.layer.id.split('.')[1] as 'points' | 'lines' | 'polygons') : undefined} 
+                      isFiltered={filteredFeature?.row?.id === feature.properties?.id && filteredFeature?.type === feature.layer.id.split('.')[1]}
+                    />
                   ))
                 ) : (
                   <p className="text-muted-foreground">Нажмите на карту чтобы поставить маркер и увидеть информацию</p>
@@ -191,11 +206,22 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-              </div>
               <div className="flex-1 overflow-auto px-3 pb-3">
                 {hoveredFeatures.length > 0 ? (
                   hoveredFeatures.map((feature, index) => (
-                    <FeatureTable key={`hovered-${index}`} feature={feature} index={index} selectedFeature={selectedFeature} onFeatureSelect={onFeatureSelect} onFeatureHover={onFeatureHover} />
+                    <FeatureTable 
+                      key={`hovered-${index}`} 
+                      feature={feature} 
+                      index={index} 
+                      selectedFeature={selectedFeature} 
+                      onFeatureSelect={onFeatureSelect} 
+                      onFeatureHover={onFeatureHover} 
+                      onZoomToFeature={onFeatureSelect} 
+                      onShowBbox={onShowBbox ? (f) => onShowBbox(f.properties, f.layer.id.split('.')[1] as 'points' | 'lines' | 'polygons') : undefined} 
+                      onFilterToFeature={onFilterToFeature ? (row, type) => onFilterToFeature(row, type) : undefined} 
+                      onClearFilter={onClearFilter ? () => onClearFilter(feature.layer.id.split('.')[1] as 'points' | 'lines' | 'polygons') : undefined} 
+                      isFiltered={filteredFeature?.row?.id === feature.properties?.id && filteredFeature?.type === feature.layer.id.split('.')[1]}
+                    />
                   ))
                 ) : (
                   <p className="text-muted-foreground">Наведите курсор на объекты слоев для просмотра атрибутов</p>
@@ -402,8 +428,8 @@ export function RightPanel({ hoveredFeatures, clickedFeatures, children, showFea
               </TooltipContent>
             </Tooltip>
            </TooltipProvider>
-         </div>
-       </Panel>
-    </PanelGroup>
-  );
+          </div>
+        </Panel>
+      </PanelGroup>
+   );
 }

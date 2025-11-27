@@ -103,7 +103,7 @@ export default function App() {
     maxLat: number;
   } | null>(null);
   const [isLuSearching, setIsLuSearching] = useState(false);
- const mapRef = useRef<any>(null);
+  const mapRef = useRef<any>(null);
 
   useEffect(() => {
     fetch(`${TILE_SERVER_URL}/index.json`)
@@ -196,7 +196,7 @@ export default function App() {
       setShowLegend(false);
       setShowAttributes(false);
     }
- };
+  };
 
   const handleBaseMapsClick = () => {
     if (showBaseMaps) {
@@ -325,7 +325,7 @@ export default function App() {
          setHoveredFeature(null);
        }
      }
-  }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedAttributeRow, showMarkerInfo]);
+   }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedAttributeRow, showMarkerInfo]);
 
 
   const updateAttributesData = (features: Feature[]) => {
@@ -432,8 +432,8 @@ export default function App() {
   };
 
 
- // Handle map click when marker attributes mode is active
-const handleMapClickWithMarkerAttributes = (
+  // Handle map click when marker attributes mode is active
+ const handleMapClickWithMarkerAttributes = (
     features: Feature[],
     lngLat: LngLat,
   ) => {
@@ -475,7 +475,8 @@ const handleMapClickWithMarkerAttributes = (
         // setShowAttributes(true);
       }
     }
- };
+  };
+
 
   // Load LU features when LU layer becomes visible and we're in LU select mode
     const [originalLuFeatures, setOriginalLuFeatures] = useState<Feature[]>([]);
@@ -556,9 +557,9 @@ const handleMapClickWithMarkerAttributes = (
     // Ensure layer is visible
     const layerName =
       type === "points" ? "stp" : type === "lines" ? "stl" : "sta";
-    setVisibleLayers(new Set([layerName])); // Only show this layer
+    setVisibleLayers(prev => new Set([...prev, layerName])); // Make sure the layer is visible
 
-    // Apply filter and hide other layers immediately
+    // Apply filter to show only the selected feature
     setTimeout(() => {
       if (mapRef.current && row) {
         const map = mapRef.current.getMap();
@@ -569,28 +570,13 @@ const handleMapClickWithMarkerAttributes = (
               ? "gdx2.stl"
               : "gdx2.sta";
         
-        // Hide all other layers first
-        const allLayerNames = ['gdx2.stp', 'gdx2.stl', 'gdx2.sta', 'gdx2.lu', 'gdx2.field'];
-        allLayerNames.forEach(name => {
-          if (map.getLayer(name)) {
-            if (name === fullLayerName) {
-              // Make target layer visible
-              map.setLayoutProperty(name, 'visibility', 'visible');
-              // Apply filter to show only the selected feature
-              // Try both string and number comparison for id
-              const idValue = row.id;
-              const filter = typeof idValue === 'number' 
-                ? ["==", ["get", "id"], idValue]
-                : ["==", ["get", "id"], String(idValue)];
-              map.setFilter(name, filter as any);
-            } else {
-              // Hide all other layers
-              map.setLayoutProperty(name, 'visibility', 'none');
-              // Clear any existing filters on hidden layers
-              map.setFilter(name, null);
-            }
-          }
-        });
+        // Apply filter to show only the selected feature in the target layer
+        // Try both string and number comparison for id
+        const idValue = row.id;
+        const filter = typeof idValue === 'number' 
+          ? ["==", ["get", "id"], idValue]
+          : ["==", ["get", "id"], String(idValue)];
+        map.setFilter(fullLayerName, filter as any);
 
         map.triggerRepaint();
 
@@ -655,6 +641,7 @@ const handleMapClickWithMarkerAttributes = (
                     properties: {},
                     geometry: geometry
                   };
+                  
                   const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
                   if (!isNaN(minLng) && !isNaN(minLat) && !isNaN(maxLng) && !isNaN(maxLat)) {
                     map.fitBounds(
@@ -1248,6 +1235,10 @@ const handleMapClickWithMarkerAttributes = (
                 visibleLayers={visibleLayers}
                 onClearSelectedFeatures={clearSelectedFeatures}
                 onClearMapSelections={clearMapSelections}
+                filteredFeature={filteredFeature}
+                onFilterToFeature={handleFilterToFeature}
+                onClearFilter={handleClearFilter}
+                onShowBbox={handleShowBbox}
               >
                 <MapView
                   ref={mapRef}
@@ -1436,5 +1427,3 @@ const handleMapClickWithMarkerAttributes = (
     </div>
   );
 }
-
-

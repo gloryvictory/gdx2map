@@ -1,4 +1,11 @@
 import type { Feature } from '../../types';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '../ui/context-menu';
+import { Filter, FilterX, MapPin, Square } from 'lucide-react';
 
 interface FeatureTableProps {
   feature: Feature;
@@ -6,9 +13,25 @@ interface FeatureTableProps {
   selectedFeature: Feature | null;
   onFeatureSelect: (feature: Feature | null) => void;
   onFeatureHover: (feature: Feature | null) => void;
+  onZoomToFeature?: (feature: Feature) => void;
+  onShowBbox?: (feature: Feature) => void;
+  onFilterToFeature?: (row: any, type: 'points' | 'lines' | 'polygons') => void;
+  onClearFilter?: () => void;
+  isFiltered?: boolean;
 }
 
-export const FeatureTable = ({ feature, index, selectedFeature, onFeatureSelect, onFeatureHover }: FeatureTableProps) => {
+export const FeatureTable = ({ 
+  feature, 
+  index, 
+  selectedFeature, 
+  onFeatureSelect, 
+  onFeatureHover,
+  onZoomToFeature,
+  onShowBbox,
+  onFilterToFeature,
+  onClearFilter,
+  isFiltered
+}: FeatureTableProps) => {
   const properties = feature.properties || {};
 
   // Определение типа геометрии
@@ -38,39 +61,90 @@ export const FeatureTable = ({ feature, index, selectedFeature, onFeatureSelect,
   const isSelected = selectedFeature && selectedFeature.properties.id === feature.properties.id;
 
   return (
-    <div className="overflow-x-auto mb-6">
-      <h3
-        className={`font-medium mb-2 dark:text-slate-200 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-blue-200 dark:bg-blue-800 p-1 rounded' : 'hover:bg-gray-100 dark:hover:bg-slate-700 p-1 rounded'}`}
-        onClick={() => onFeatureSelect(isSelected ? null : feature)}
-        onMouseEnter={() => onFeatureHover(feature)}
-        onMouseLeave={() => onFeatureHover(null)}
-      >
-        Отчет {index + 1} ({geometryType})
-      </h3>
-      <table className="min-w-full border-collapse mb-4">
-        <thead>
-          <tr>
-            <th className="border border-gray-300 p-2 dark:bg-slate-800 dark:text-slate-200">Параметр</th>
-            <th className="border border-gray-300 p-2 dark:bg-slate-800 dark:text-slate-200">Значение</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tableRows.map((row, rowIndex) => (
-            <tr 
-              key={row.key}
-              className={rowIndex % 2 === 0 ? 
-                'bg-white dark:bg-slate-800' : 
-                'bg-gray-50 dark:bg-slate-700'
+    <ContextMenu>
+      <ContextMenuTrigger>
+        <div className="overflow-x-auto mb-6">
+          <h3
+            className={`font-medium mb-2 dark:text-slate-200 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-blue-200 dark:bg-blue-800 p-1 rounded' : 'hover:bg-gray-100 dark:hover:bg-slate-700 p-1 rounded'}`}
+            onClick={() => onFeatureSelect(isSelected ? null : feature)}
+            onMouseEnter={() => onFeatureHover(feature)}
+            onMouseLeave={() => onFeatureHover(null)}
+          >
+            Отчет {index + 1} ({geometryType})
+          </h3>
+          <table className="min-w-full border-collapse mb-4">
+            <thead>
+              <tr>
+                <th className="border border-gray-300 p-2 dark:bg-slate-800 dark:text-slate-200">Параметр</th>
+                <th className="border border-gray-300 p-2 dark:bg-slate-800 dark:text-slate-200">Значение</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((row, rowIndex) => (
+                <tr 
+                  key={row.key}
+                  className={rowIndex % 2 === 0 ? 
+                    'bg-white dark:bg-slate-800' : 
+                    'bg-gray-50 dark:bg-slate-700'
+                  }
+                >
+                  <td className="border border-gray-300 p-2 dark:text-slate-200">{row.label}</td>
+                  <td className="border border-gray-300 p-2 dark:text-slate-200">
+                    {properties[row.key] || '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-64">
+        <ContextMenuItem 
+          onClick={() => {
+            if (onZoomToFeature) {
+              onZoomToFeature(feature);
+            }
+          }}
+        >
+          <MapPin className="w-4 h-4 mr-2" />
+          Показать на карте
+        </ContextMenuItem>
+        <ContextMenuItem 
+          onClick={() => {
+            if (onShowBbox) {
+              onShowBbox(feature);
+            }
+          }}
+        >
+          <Square className="w-4 h-4 mr-2" />
+          Показать bbox
+        </ContextMenuItem>
+        <ContextMenuItem 
+          onClick={() => {
+            if (onFilterToFeature) {
+              // Передаем properties и тип геометрии
+              const type = feature.layer.id.split('.')[1];
+              const featureType = type === 'stp' ? 'points' : type === 'stl' ? 'lines' : 'polygons';
+              onFilterToFeature(feature.properties, featureType);
+            }
+          }}
+        >
+          <Filter className="w-4 h-4 mr-2" />
+          Показать только этот
+        </ContextMenuItem>
+        {isFiltered && (
+          <ContextMenuItem 
+            onClick={() => {
+              if (onClearFilter) {
+                onClearFilter();
               }
-            >
-              <td className="border border-gray-300 p-2 dark:text-slate-200">{row.label}</td>
-              <td className="border border-gray-300 p-2 dark:text-slate-200">
-                {properties[row.key] || '-'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            }}
+          >
+            <FilterX className="w-4 h-4 mr-2" />
+            Показать все
+          </ContextMenuItem>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
