@@ -19,7 +19,7 @@ export const MapView = forwardRef<any, {
   enableHover: boolean;
   infoMode: 'points' | 'lines' | 'polygons' | null;
   onClick: (features: Feature[], lngLat: LngLat) => void;
-  marker: LngLat | null;
+ marker: LngLat | null;
   markerLuName?: string;
   onMouseMoveCoords: (coords: LngLat | null) => void;
   highlightedPoints: Set<string>;
@@ -34,9 +34,10 @@ export const MapView = forwardRef<any, {
   filteredFeature?: FilteredFeature | null;
   rectangleSelection?: boolean;
   onRectangleSelect?: (bounds: BBox) => void;
+  luPolygonFeature?: Feature | null;  // Добавляем проп для отображения полигона ЛУ
 }>(({
   styleUrl,
-  visibleLayers,
+ visibleLayers,
   layers,
   onFeaturesHover,
   enableHover,
@@ -51,12 +52,13 @@ export const MapView = forwardRef<any, {
   onZoomChange,
   selectedFeature,
   hoveredFeature,
- selectedAttributeRow,
+  selectedAttributeRow,
   onRedrawStart,
-  onRedrawEnd,
+ onRedrawEnd,
   filteredFeature,
-  rectangleSelection,
-  onRectangleSelect
+ rectangleSelection,
+  onRectangleSelect,
+  luPolygonFeature  // Добавляем проп в деструктуризацию
 }, ref) => {
   const targetLayerNames = ['stp', 'stl', 'sta'];
   const mapRef = useRef<MapRef | null>(null);
@@ -262,7 +264,7 @@ export const MapView = forwardRef<any, {
           }
         } else {
           // Check if layer is actually visible
-          const layerVisibility = map.getLayoutProperty(layerId, 'visibility');
+          // const layerVisibility = map.getLayoutProperty(layerId, 'visibility');
         }
         // For lu, also add labels (removed - lu_labels requires glyphs)
         // if (layer.name === 'lu') {
@@ -270,7 +272,7 @@ export const MapView = forwardRef<any, {
         //   const labelsId = labelsConfig.layer.id;
         //   if (!map.getLayer(labelsId)) {
         //     console.log('Adding layer', labelsId);
-        //     map.addLayer(labelsConfig.layer);
+        //     map.addLayer(labelsId);
         //     map.triggerRepaint();
         //   }
         // }
@@ -355,6 +357,76 @@ export const MapView = forwardRef<any, {
     }, 100);
   }, [mapLoaded, visibleLayers, layers, highlightedPoints, highlightedLines, highlightedPolygons, onRedrawStart, onRedrawEnd]);
 
+  // Добавляем эффект для отображения полигона ЛУ поверх остальных слоев
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const luPolygonLayerId = 'lu-polygon-highlight';
+    const luPolygonOutlineLayerId = 'lu-polygon-outline';
+    
+    // Если есть полигональный объект для отображения
+    if (luPolygonFeature) {
+      // Удаляем существующие слои, если они есть
+      if (map.getLayer(luPolygonOutlineLayerId)) {
+        map.removeLayer(luPolygonOutlineLayerId);
+      }
+      if (map.getLayer(luPolygonLayerId)) {
+        map.removeLayer(luPolygonLayerId);
+      }
+      
+      // Удаляем источник, если он есть
+      if (map.getSource(luPolygonLayerId)) {
+        map.removeSource(luPolygonLayerId);
+      }
+      
+      // Добавляем новый источник с геометрией выбранного полигона ЛУ
+      map.addSource(luPolygonLayerId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: luPolygonFeature.properties,
+          geometry: luPolygonFeature.geometry
+        }
+      });
+      
+      // Добавляем слой для отображения полигона ЛУ (заливка)
+      map.addLayer({
+        id: luPolygonLayerId,
+        type: 'fill',
+        source: luPolygonLayerId,
+        paint: {
+          'fill-color': '#0a0171',
+          'fill-opacity': 0.3,
+          'fill-outline-color': '#ffffff'
+        }
+      }, 'gdx2.lu'); // Поверх слоя LU, но под другими слоями
+      
+      // Также добавляем границы полигона как отдельный слой для лучшей видимости
+      map.addLayer({
+        id: luPolygonOutlineLayerId,
+        type: 'line',
+        source: luPolygonLayerId,
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': 2
+        }
+      }, luPolygonLayerId); // Поверх заливки
+    } else {
+      // Если полигона нет, удаляем слои
+      if (map.getLayer(luPolygonOutlineLayerId)) {
+        map.removeLayer(luPolygonOutlineLayerId);
+      }
+      if (map.getLayer(luPolygonLayerId)) {
+        map.removeLayer(luPolygonLayerId);
+      }
+      if (map.getSource(luPolygonLayerId)) {
+        map.removeSource(luPolygonLayerId);
+      }
+    }
+ }, [luPolygonFeature, mapLoaded]);
+
   useEffect(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
@@ -401,7 +473,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(selectedLayerId);
       }
     }
- }, [selectedFeature, mapLoaded]);
+  }, [selectedFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -498,7 +570,7 @@ export const MapView = forwardRef<any, {
  }, [selectedAttributeRow, mapLoaded]);
 
   useEffect(() => {
-    if (!mapLoaded || !selectedFeature || !selectedFeature.geometry) return;
+    if (!mapLoaded || !selectedFeature?.geometry) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
 
@@ -610,7 +682,7 @@ export const MapView = forwardRef<any, {
                     map.flyTo({
                       center: [lng, lat],
                       zoom: 10,
-                      duration: 1000
+                      duration: 100
                     });
                   }
                 }
@@ -636,7 +708,7 @@ export const MapView = forwardRef<any, {
       });
       map.triggerRepaint();
     }
-  }, [filteredFeature, mapLoaded]);
+ }, [filteredFeature, mapLoaded]);
 
   // Handle cursor style: arrow for rectangle selection, otherwise allow hover logic to set pointer
   useEffect(() => {

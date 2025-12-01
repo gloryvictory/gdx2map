@@ -49,6 +49,7 @@ export default function App() {
   const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
   const [displayLuFeatures, setDisplayLuFeatures] = useState<Feature[]>([]);
   const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
+  const [luPolygonFeature, setLuPolygonFeature] = useState<Feature | null>(null); // Добавляем состояние для полигона ЛУ
   const [marker, setMarker] = useState<LngLat | null>(null);
   const [markerLuName, setMarkerLuName] = useState<string | null>(null);
   const [showFeatureTable, setShowFeatureTable] = useState(false);
@@ -59,7 +60,7 @@ export default function App() {
   const [showMarkerAttributes, setShowMarkerAttributes] = useState(false);
   const [activeTool, setActiveTool] = useState<
     "info" | "hover-info" | "attributes" | "rectangle" | "lu-select" | null
-  >(null);
+ >(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [attributesPointsData, setAttributesPointsData] = useState<ReportRow[]>(
     [],
@@ -78,13 +79,13 @@ export default function App() {
   const [highlightedPoints, setHighlightedPoints] = useState<Set<string>>(
     new Set(),
   );
-  const [highlightedLines, setHighlightedLines] = useState<Set<string>>(
+ const [highlightedLines, setHighlightedLines] = useState<Set<string>>(
     new Set(),
   );
   const [highlightedPolygons, setHighlightedPolygons] = useState<Set<string>>(
     new Set(),
   );
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
+ const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [hoveredFeature, setHoveredFeature] = useState<Feature | null>(null);
   const [selectedAttributeRow, setSelectedAttributeRow] =
     useState<SelectedAttributeRow | null>(null);
@@ -152,7 +153,7 @@ export default function App() {
               type: "xyz",
               // pg_tileserv format: /{schema}.{table}/{z}/{x}/{y}.pbf
               url: `${TILE_SERVER_URL}/${fullId}/{z}/{x}/{y}.pbf`,
-              level: { min: 0, max: 22 },
+              level: { min: 0, max: 2 },
             };
           })
           .filter((layer) => order.includes(layer.name))
@@ -196,7 +197,7 @@ export default function App() {
       setShowLegend(false);
       setShowAttributes(false);
     }
-  };
+ };
 
   const handleBaseMapsClick = () => {
     if (showBaseMaps) {
@@ -363,7 +364,7 @@ export default function App() {
       // Ensure layer is visible
       setVisibleLayers((prev) => new Set([...prev, "stp"]));
     }
-  };
+ };
 
   const toggleHighlightLines = () => {
     if (highlightedLines.size > 0) {
@@ -395,7 +396,7 @@ export default function App() {
       // Ensure layer is visible
       setVisibleLayers((prev) => new Set([...prev, "sta"]));
     }
-  };
+ };
 
   const handleFeatureSelect = (feature: Feature | null) => {
     setSelectedFeature(feature);
@@ -651,7 +652,7 @@ export default function App() {
                       ],
                       {
                         padding: 50,
-                        duration: 1000,
+                        duration: 100,
                       },
                     );
                   }
@@ -816,6 +817,165 @@ export default function App() {
     }
   };
 
+  // Обновляем функцию для обработки выбора ЛУ, чтобы использовать геометрию из существующего объекта
+  const handleLuSelect = (lu: Feature | null, showInfo = true) => {
+    if (lu) {
+      // Check if this is a marker placement action (same LU selected)
+      if (selectedLu && selectedLu.properties.id === lu.properties.id) {
+        // Place marker at the center of the LU
+        const geometry = lu.geometry;
+        let centerLngLat: LngLat | null = null;
+        
+        // Calculate center based on geometry type
+        if (geometry.type === 'Point') {
+          centerLngLat = { lng: geometry.coordinates[0], lat: geometry.coordinates[1] };
+        } else {
+          // For polygons and other geometries, calculate bbox and use center
+          const featureForBbox = {
+            type: 'Feature' as const,
+            properties: {},
+            geometry: geometry
+          };
+          const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+          centerLngLat = {
+            lng: (minLng + maxLng) / 2,
+            lat: (minLat + maxLat) / 2
+          };
+        }
+        
+        if (centerLngLat) {
+          setMarker(centerLngLat);
+          // Set the LU name for the marker
+          setMarkerLuName(lu.properties.name_rus || lu.properties.name || `Участок ${lu.properties.id}`);
+          // Only show marker info if explicitly requested (default is true)
+          if (showInfo) {
+            setShowMarkerInfo(true);
+            setActiveTool("info");
+          } else {
+            // If not showing info, make sure it's hidden
+            setShowMarkerInfo(false);
+            setActiveTool(null);
+          }
+          // Set the marker coordinates as the current marker position
+          // This will display the marker on the map with the LU name
+        }
+      } else {
+        // Different LU selected - reset marker and set new LU
+        setMarker(null);
+        // Update selected LU
+        setSelectedLu(lu);
+        setSelectedAttributeRow(null);
+        
+        // Clear previous attribute data before loading new data
+        setAttributesPolygonsData([]);
+        setAttributesLinesData([]);
+        setAttributesPointsData([]);
+        
+        // Set loading state
+        setIsLuSearching(true);
+        
+        // Use the geometry from the selected LU feature directly (no CQL request needed)
+        setLuPolygonFeature(lu);
+        
+        // Additionally, zoom to the LU using its bbox if selected
+        if (mapRef.current && lu.geometry) {
+          const map = mapRef.current.getMap();
+          const geometry = lu.geometry;
+          
+          // Create a feature for bbox calculation
+          const featureForBbox = {
+            type: 'Feature' as const,
+            properties: {},
+            geometry: geometry
+          };
+          
+          // Calculate bbox
+          const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+          
+          // Zoom to the bbox
+          map.fitBounds([
+            [minLng, minLat],
+            [maxLng, maxLat]
+          ], {
+            padding: 50,
+            duration: 1000
+          });
+          
+          // Query features within the LU area and populate attribute tables
+          const searchFeatures = (retryCount = 0) => {
+            if (mapRef.current) {
+              const map = mapRef.current.getMap();
+              
+              // Query features from sta, stl, stp layers
+              const staFeatures = map.queryRenderedFeatures({ layers: ['gdx2.sta'] });
+              const stlFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stl'] });
+              const stpFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stp'] });
+              
+              // Filter features that intersect with the selected LU
+              const luBbox = bbox(featureForBbox);
+              
+              // For simplicity, we'll include all features that are within the LU bbox
+              // A more accurate implementation would check for actual intersection
+              const filterFeaturesInLu = (features: any[]) => {
+                return features.filter((feature: any) => {
+                  const featureBbox = bbox({
+                    type: 'Feature',
+                    properties: {},
+                    geometry: feature.geometry
+                  });
+                  
+                  // Check if feature bbox intersects with LU bbox
+                  return !(featureBbox[2] < luBbox[0] ||
+                         featureBbox[0] > luBbox[2] ||
+                         featureBbox[3] < luBbox[1] ||
+                         featureBbox[1] > luBbox[3]);
+                });
+              };
+              
+              const filteredSta = filterFeaturesInLu(staFeatures);
+              const filteredStl = filterFeaturesInLu(stlFeatures);
+              const filteredStp = filterFeaturesInLu(stpFeatures);
+              
+              // If no features found and we haven't reached max retries, wait and try again
+              if ((filteredSta.length === 0 && filteredStp.length === 0 && filteredStl.length === 0) && retryCount < 3) {
+                setTimeout(() => searchFeatures(retryCount + 1), 200);
+                return;
+              }
+              
+              // Update attribute tables
+              setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
+              setAttributesLinesData(filteredStl.map((f: any) => f.properties));
+              setAttributesPointsData(filteredStp.map((f: any) => f.properties));
+              
+              // Show attributes panel
+              setShowAttributes(true);
+            }
+            // End loading state
+            setIsLuSearching(false);
+          };
+          
+          // Start searching immediately, with retry logic
+          setTimeout(() => searchFeatures(0), 100);
+        } else {
+          // End loading state if no geometry
+          setIsLuSearching(false);
+        }
+      }
+    } else {
+      // Deselect LU
+      setSelectedLu(null);
+      setMarker(null);
+      setMarkerLuName(null);
+      setAttributesPolygonsData([]);
+      setAttributesLinesData([]);
+      setAttributesPointsData([]);
+      // Clear the LU polygon feature when deselecting
+      setLuPolygonFeature(null);
+      // End loading state
+      setIsLuSearching(false);
+    }
+  };
+
   return (
     <div
       className={`min-h-screen bg-background text-foreground relative ${theme}`}
@@ -975,7 +1135,7 @@ export default function App() {
                     setAttributesPointsData([]);
                     setAttributesLinesData([]);
                     setAttributesPolygonsData([]);
-                    // Don't hide attributes panel when activating marker info
+                    // Don't show attributes panel when activating marker info
                     // Only show it if there are features to display
                     // But don't show if we're only using marker info without attributes
                     // According to requirements, don't show attributes panel when using "Info under marker"
@@ -1045,158 +1205,7 @@ export default function App() {
                 }}
                 luFeatures={displayLuFeatures}
                 selectedLu={selectedLu}
-                onLuSelect={(lu, showInfo = true) => {
-                  if (lu) {
-                    // Check if this is a marker placement action (same LU selected)
-                    if (selectedLu && selectedLu.properties.id === lu.properties.id) {
-                      // Place marker at the center of the LU
-                      const geometry = lu.geometry;
-                      let centerLngLat: LngLat | null = null;
-                      
-                      // Calculate center based on geometry type
-                      if (geometry.type === 'Point') {
-                        centerLngLat = { lng: geometry.coordinates[0], lat: geometry.coordinates[1] };
-                      } else {
-                        // For polygons and other geometries, calculate bbox and use center
-                        const featureForBbox = {
-                          type: 'Feature' as const,
-                          properties: {},
-                          geometry: geometry
-                        };
-                        const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-                        centerLngLat = {
-                          lng: (minLng + maxLng) / 2,
-                          lat: (minLat + maxLat) / 2
-                        };
-                      }
-                      
-                      if (centerLngLat) {
-                        setMarker(centerLngLat);
-                        // Set the LU name for the marker
-                        setMarkerLuName(lu.properties.name_rus || lu.properties.name || `Участок ${lu.properties.id}`);
-                        // Only show marker info if explicitly requested (default is true)
-                        if (showInfo) {
-                          setShowMarkerInfo(true);
-                          setActiveTool("info");
-                        } else {
-                          // If not showing info, make sure it's hidden
-                          setShowMarkerInfo(false);
-                          setActiveTool(null);
-                        }
-                        // Set the marker coordinates as the current marker position
-                        // This will display the marker on the map with the LU name
-                      }
-                    } else {
-                      // Different LU selected - reset marker and set new LU
-                      setMarker(null);
-                      // Update selected LU
-                      setSelectedLu(lu);
-                      setSelectedAttributeRow(null);
-                      
-                      // Clear previous attribute data before loading new data
-                      setAttributesPolygonsData([]);
-                      setAttributesLinesData([]);
-                      setAttributesPointsData([]);
-                      
-                      // Set loading state
-                      setIsLuSearching(true);
-                      
-                      // Additionally, zoom to the LU using its bbox if selected
-                      if (mapRef.current && lu.geometry) {
-                        const map = mapRef.current.getMap();
-                        const geometry = lu.geometry;
-                        
-                        // Create a feature for bbox calculation
-                        const featureForBbox = {
-                          type: 'Feature' as const,
-                          properties: {},
-                          geometry: geometry
-                        };
-                        
-                        // Calculate bbox
-                        const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-                        
-                        // Zoom to the bbox
-                        map.fitBounds([
-                          [minLng, minLat],
-                          [maxLng, maxLat]
-                        ], {
-                          padding: 50,
-                          duration: 100
-                        });
-                        
-                        // Query features within the LU area and populate attribute tables
-                        const searchFeatures = (retryCount = 0) => {
-                          if (mapRef.current) {
-                            const map = mapRef.current.getMap();
-                            
-                            // Query features from sta, stl, stp layers
-                            const staFeatures = map.queryRenderedFeatures({ layers: ['gdx2.sta'] });
-                            const stlFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stl'] });
-                            const stpFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stp'] });
-                            
-                            // Filter features that intersect with the selected LU
-                            const luBbox = bbox(featureForBbox);
-                            
-                            // For simplicity, we'll include all features that are within the LU bbox
-                            // A more accurate implementation would check for actual intersection
-                            const filterFeaturesInLu = (features: any[]) => {
-                              return features.filter((feature: any) => {
-                                const featureBbox = bbox({
-                                  type: 'Feature',
-                                  properties: {},
-                                  geometry: feature.geometry
-                                });
-                                
-                                // Check if feature bbox intersects with LU bbox
-                                return !(featureBbox[2] < luBbox[0] ||
-                                       featureBbox[0] > luBbox[2] ||
-                                       featureBbox[3] < luBbox[1] ||
-                                       featureBbox[1] > luBbox[3]);
-                              });
-                            };
-                            
-                            const filteredSta = filterFeaturesInLu(staFeatures);
-                            const filteredStl = filterFeaturesInLu(stlFeatures);
-                            const filteredStp = filterFeaturesInLu(stpFeatures);
-                            
-                            // If no features found and we haven't reached max retries, wait and try again
-                            if ((filteredSta.length === 0 && filteredStp.length === 0 && filteredStl.length === 0) && retryCount < 3) {
-                              setTimeout(() => searchFeatures(retryCount + 1), 200);
-                              return;
-                            }
-                            
-                            // Update attribute tables
-                            setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
-                            setAttributesLinesData(filteredStl.map((f: any) => f.properties));
-                            setAttributesPointsData(filteredStp.map((f: any) => f.properties));
-                            
-                            // Show attributes panel
-                            setShowAttributes(true);
-                          }
-                          // End loading state
-                          setIsLuSearching(false);
-                        };
-                        
-                        // Start searching immediately, with retry logic
-                        setTimeout(() => searchFeatures(0), 100);
-                      } else {
-                        // End loading state if no geometry
-                        setIsLuSearching(false);
-                      }
-                    }
-                  } else {
-                    // Deselect LU
-                    setSelectedLu(null);
-                    setMarker(null);
-                    setMarkerLuName(null);
-                    setAttributesPolygonsData([]);
-                    setAttributesLinesData([]);
-                    setAttributesPointsData([]);
-                    // End loading state
-                    setIsLuSearching(false);
-                  }
-                }}
+                onLuSelect={handleLuSelect} // Используем обновленную функцию
                 onExportLuToExcel={(lu) => {
                   exportLuFeaturesToExcel(
                     lu,
@@ -1316,6 +1325,7 @@ export default function App() {
                       // Keep rectangle selection tool active for subsequent selections
                     }
                   }}
+                  luPolygonFeature={luPolygonFeature} // Передаем полигон ЛУ в MapView
                 />
               </RightPanel>
             </Panel>
@@ -1385,7 +1395,7 @@ export default function App() {
                         };
                         
                         const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-
+                        
                         map.fitBounds(
                           [
                             [minLng, minLat],
@@ -1393,7 +1403,7 @@ export default function App() {
                           ],
                           {
                             padding: 50,
-                            duration: 1000,
+                            duration: 100,
                           },
                         );
                       }
