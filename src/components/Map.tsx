@@ -60,11 +60,12 @@ export const MapView = forwardRef<any, {
   onRectangleSelect,
   luPolygonFeature  // Добавляем проп в деструктуризацию
 }, ref) => {
-  const targetLayerNames = ['stp', 'stl', 'sta'];
+ const targetLayerNames = ['stp', 'stl', 'sta'];
   const mapRef = useRef<MapRef | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [rectangleStart, setRectangleStart] = useState<{lng: number, lat: number} | null>(null);
   const [rectangleCurrent, setRectangleCurrent] = useState<{lng: number, lat: number} | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useImperativeHandle(ref, () => ({
     getMap: () => mapRef.current?.getMap()
@@ -101,6 +102,7 @@ export const MapView = forwardRef<any, {
       filteredTargetNames = ['stp'];
     } else if (infoMode === 'lines') {
       filteredTargetNames = ['stl'];
+  const [isMapRedrawing, setIsMapRedrawing] = useState(false);
     } else if (infoMode === 'polygons') {
       filteredTargetNames = ['sta'];
     }
@@ -241,7 +243,12 @@ export const MapView = forwardRef<any, {
         if (!map.getLayer(layerId)) {
           // Try to add layer, but if it fails due to source-layer mismatch, try alternative
           try {
-            map.addLayer(config.layer);
+            // Ensure LU layer is above STA layer
+            if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
+              map.addLayer(config.layer, 'gdx2.sta'); // Add LU layer above STA layer
+            } else {
+              map.addLayer(config.layer);
+            }
             map.triggerRepaint();
           } catch (error: any) {
             console.error('Error adding layer', layerId, error);
@@ -255,7 +262,11 @@ export const MapView = forwardRef<any, {
                 altLayer['source-layer'] = layer.name;
               }
               try {
-                map.addLayer(altLayer);
+                if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
+                  map.addLayer(altLayer, 'gdx2.sta'); // Add LU layer above STA layer
+                } else {
+                  map.addLayer(altLayer);
+                }
                 map.triggerRepaint();
               } catch (altError) {
                 console.error('Failed with alternative source-layer too', altError);
@@ -351,6 +362,11 @@ export const MapView = forwardRef<any, {
       }
     });
 
+    // Ensure LU layer is always above STA layer, even if added later
+    if (map.getLayer('gdx2.lu') && map.getLayer('gdx2.sta')) {
+      map.moveLayer('gdx2.lu', 'gdx2.sta'); // Move LU layer above STA layer
+    }
+
     // End redraw after a short delay to allow rendering
     setTimeout(() => {
       onRedrawEnd?.();
@@ -391,28 +407,16 @@ export const MapView = forwardRef<any, {
         }
       });
       
-      // Добавляем слой для отображения полигона ЛУ (заливка)
-      map.addLayer({
-        id: luPolygonLayerId,
-        type: 'fill',
-        source: luPolygonLayerId,
-        paint: {
-          'fill-color': '#0a0171',
-          'fill-opacity': 0.3,
-          'fill-outline-color': '#ffffff'
-        }
-      }, 'gdx2.lu'); // Поверх слоя LU, но под другими слоями
-      
-      // Также добавляем границы полигона как отдельный слой для лучшей видимости
+      // Добавляем слой для отображения контура полигона ЛУ (без заливки)
       map.addLayer({
         id: luPolygonOutlineLayerId,
         type: 'line',
         source: luPolygonLayerId,
         paint: {
-          'line-color': '#ffffff',
-          'line-width': 2
+          'line-color': '#ffff00',  // Желтый цвет для контура
+          'line-width': 3
         }
-      }, luPolygonLayerId); // Поверх заливки
+      });
     } else {
       // Если полигона нет, удаляем слои
       if (map.getLayer(luPolygonOutlineLayerId)) {
@@ -473,7 +477,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(selectedLayerId);
       }
     }
-  }, [selectedFeature, mapLoaded]);
+ }, [selectedFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -519,7 +523,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(hoverLayerId);
       }
     }
- }, [hoveredFeature, mapLoaded]);
+  }, [hoveredFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -708,7 +712,7 @@ export const MapView = forwardRef<any, {
       });
       map.triggerRepaint();
     }
- }, [filteredFeature, mapLoaded]);
+  }, [filteredFeature, mapLoaded]);
 
   // Handle cursor style: arrow for rectangle selection, otherwise allow hover logic to set pointer
   useEffect(() => {
@@ -721,10 +725,10 @@ export const MapView = forwardRef<any, {
     } else {
       map.getCanvas().style.cursor = '';
     }
-  }, [rectangleSelection, mapLoaded]);
+ }, [rectangleSelection, mapLoaded]);
 
   // Clear local rectangle state when tool is turned off
-  useEffect(() => {
+ useEffect(() => {
     if (!rectangleSelection) {
       setRectangleStart(null);
       setRectangleCurrent(null);

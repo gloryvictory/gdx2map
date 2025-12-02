@@ -14,7 +14,7 @@ import { Checkbox } from "./components/ui/checkbox";
 
 import {
   Dialog,
-  DialogContent,
+ DialogContent,
   DialogHeader,
   DialogTitle,
 } from "./components/ui/dialog";
@@ -41,7 +41,7 @@ export default function App() {
   const [showLayers, setShowLayers] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
   const [showAttributes, setShowAttributes] = useState(false);
-  const [layers, setLayers] = useState<Layer[]>([]);
+ const [layers, setLayers] = useState<Layer[]>([]);
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
   const [hoveredFeatures, setHoveredFeatures] = useState<Feature[]>([]);
   const [clickedFeatures, setClickedFeatures] = useState<Feature[]>([]);
@@ -50,9 +50,9 @@ export default function App() {
   const [displayLuFeatures, setDisplayLuFeatures] = useState<Feature[]>([]);
   const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
   const [luPolygonFeature, setLuPolygonFeature] = useState<Feature | null>(null); // Добавляем состояние для полигона ЛУ
-  const [marker, setMarker] = useState<LngLat | null>(null);
+ const [marker, setMarker] = useState<LngLat | null>(null);
   const [markerLuName, setMarkerLuName] = useState<string | null>(null);
-  const [showFeatureTable, setShowFeatureTable] = useState(false);
+ const [showFeatureTable, setShowFeatureTable] = useState(false);
   const [activeInfoMode, setActiveInfoMode] = useState<
     "points" | "lines" | "polygons" | null
   >(null);
@@ -76,13 +76,13 @@ export default function App() {
     "EPSG:4326",
   );
   const [currentZoom, setCurrentZoom] = useState<number>(2);
-  const [highlightedPoints, setHighlightedPoints] = useState<Set<string>>(
+ const [highlightedPoints, setHighlightedPoints] = useState<Set<string>>(
     new Set(),
   );
  const [highlightedLines, setHighlightedLines] = useState<Set<string>>(
     new Set(),
   );
-  const [highlightedPolygons, setHighlightedPolygons] = useState<Set<string>>(
+ const [highlightedPolygons, setHighlightedPolygons] = useState<Set<string>>(
     new Set(),
   );
  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
@@ -90,7 +90,7 @@ export default function App() {
   const [selectedAttributeRow, setSelectedAttributeRow] =
     useState<SelectedAttributeRow | null>(null);
   const [isMapRedrawing, setIsMapRedrawing] = useState(false);
-  const [isFiltering, setIsFiltering] = useState(false);
+ const [isFiltering, setIsFiltering] = useState(false);
   const [filteredFeature, setFilteredFeature] =
     useState<FilteredFeature | null>(null);
   const [showRectangleSelection, setShowRectangleSelection] = useState(false);
@@ -119,7 +119,7 @@ export default function App() {
           "gdx2.lu": "Лицензионные участки",
           "gdx2.field": "Месторождения",
         };
-        const order = ["field", "lu", "sta", "stl", "stp"];
+        const order = ["field", "sta", "lu", "stl", "stp"]; // Изменяем порядок: lu теперь после sta, чтобы в интерфейсе lu был выше из-за .reverse()
         
         // Handle both array format and object format from pg_tileserv
         let tableEntries: Array<{ id: string; description?: string; table?: string; schema?: string }> = [];
@@ -164,7 +164,7 @@ export default function App() {
         setVisibleLayers(initialVisible);
       })
       .catch((error) => console.error("Failed to fetch layers:", error));
-  }, []);
+ });
   const style = useMemo(() => {
     const found = ALL_BASEMAPS.find((b) => b.key === basemapKey);
     return found ? found.url : LIGHT_MAP_STYLE;
@@ -329,7 +329,7 @@ export default function App() {
    }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedAttributeRow, showMarkerInfo]);
 
 
-  const updateAttributesData = (features: Feature[]) => {
+ const updateAttributesData = (features: Feature[]) => {
     const points: ReportRow[] = [];
     const lines: ReportRow[] = [];
     const polygons: ReportRow[] = [];
@@ -433,7 +433,7 @@ export default function App() {
   };
 
 
-  // Handle map click when marker attributes mode is active
+ // Handle map click when marker attributes mode is active
  const handleMapClickWithMarkerAttributes = (
     features: Feature[],
     lngLat: LngLat,
@@ -534,7 +534,7 @@ export default function App() {
         };
         
         // Start loading after a small delay
-        const timer = setTimeout(loadLuFeatures, 300);
+        const timer = setTimeout(loadLuFeatures, 30);
         return () => clearTimeout(timer);
       } else if (!showLuSelect) {
         // Clear LU features when panel is closed, but preserve original for later use
@@ -606,7 +606,7 @@ export default function App() {
                 ],
                 {
                   padding: 50,
-                  duration: 1000,
+                  duration: 100,
                 },
               );
               setIsFiltering(false);
@@ -633,7 +633,7 @@ export default function App() {
                     map.flyTo({
                       center: coords,
                       zoom: 12,
-                      duration: 1000,
+                      duration: 100,
                     });
                   }
                 } else {
@@ -696,6 +696,7 @@ export default function App() {
       allLayerNames.forEach(name => {
         if (map.getLayer(name)) {
           map.setLayoutProperty(name, 'visibility', 'visible');
+          map.setFilter(name, null);
         }
       });
       
@@ -738,7 +739,7 @@ export default function App() {
         setShowBboxDialog(true);
       }
     }
-  };
+ };
 
   const handleAttributeRowSelect = (
     row: ReportRow,
