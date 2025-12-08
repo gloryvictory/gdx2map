@@ -9,4 +9,13 @@ export default defineConfig({
 			'@': path.resolve(__dirname, './src'),
 		},
 	},
+	server: {
+		proxy: {
+			'/gdx2': {
+				target: 'http://r48-vgeohub01.zsniigg.local:7800',
+				changeOrigin: true,
+				secure: false,
+			},
+		},
+	},
 })
