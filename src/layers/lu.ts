@@ -1,4 +1,4 @@
-import type { VectorSourceSpecification, FillLayerSpecification, SymbolLayerSpecification } from 'maplibre-gl';
+import type { VectorSourceSpecification, LineLayerSpecification, SymbolLayerSpecification } from 'maplibre-gl';
 import { TILE_SERVER_URL } from '../config';
 
 export const layer_name_lu: string = 'lu';
@@ -10,14 +10,14 @@ export const luSource: VectorSourceSpecification = {
   maxzoom: 22,
 };
 
-export const luLayer: FillLayerSpecification = {
+export const luLayer: LineLayerSpecification = {
   id: `gdx2.lu`,
-  type: 'fill',
+  type: 'line',
   source: `gdx2.lu`,
   'source-layer': `gdx2.lu`,
   paint: {
-    'fill-color': '#0a0171',
-    'fill-opacity': 0.2,
+    'line-color': '#0a0171',
+    'line-width': 2,
   },
 };
 

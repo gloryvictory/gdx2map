@@ -51,6 +51,7 @@ export function BottomPanel({
           value={coordSystem}
           onChange={(e) => onCoordSystemChange(e.target.value as 'EPSG:4326' | 'EPSG:3857')}
           className="text-sm border border-border rounded px-2 py-1 bg-background"
+          aria-label="Выбор системы координат"
         >
           <option value="EPSG:4326">EPSG:4326</option>
           <option value="EPSG:3857">EPSG:3857</option>

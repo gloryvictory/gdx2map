@@ -205,6 +205,174 @@ export const MapView = forwardRef<any, {
     if (!map) return;
 
     onRedrawStart?.();
+    setIsMapRedrawing(true);
+    // console.log('Adding/removing layers', visibleLayers);
+
+    const allLayers = layers;
+
+    allLayers.forEach(layer => {
+      const config = layersConfig[layer.name];
+      if (!config) return;
+
+      const sourceId = config.layer.source as string;
+      const layerId = config.layer.id;
+      const highlightLayerId = `${layerId}-highlight`;
+
+      if (visibleLayers.has(layer.name)) {
+        // Add source if not exists
+        if (!map.getSource(sourceId)) {
+          try {
+            map.addSource(sourceId, config.source);
+            // Wait for source to load and check available source-layers
+            map.once('sourcedata', (e) => {
+              if (e.sourceId === sourceId && e.isSourceLoaded) {
+                const source = map.getSource(sourceId) as any;
+                if (source && source.vectorLayers) {
+                }
+              }
+            });
+          } catch (error) {
+            console.error('Error adding source', sourceId, error);
+          }
+        } else {
+          // Source exists, check if it's loaded
+          const source = map.getSource(sourceId) as any;
+          if (source && source.vectorLayers) {
+          }
+        }
+        
+        // Add layer if not exists
+        if (!map.getLayer(layerId)) {
+          // Try to add layer, but if it fails due to source-layer mismatch, try alternative
+          try {
+            // Ensure LU layer is above STA layer when added
+            if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
+              map.addLayer(config.layer, 'gdx2.sta'); // Add LU layer above STA layer
+            } else {
+              map.addLayer(config.layer);
+            }
+            map.triggerRepaint();
+          } catch (error: any) {
+            console.error('Error adding layer', layerId, error);
+            // If error is about source-layer, try with full name
+            if (error && error.message && error.message.includes('source-layer')) {
+              const altLayer = { ...config.layer };
+              // Try full name if currently using short name, or vice versa
+              if (altLayer['source-layer'] === layer.name) {
+                altLayer['source-layer'] = `gdx2.${layer.name}`;
+              } else {
+                altLayer['source-layer'] = layer.name;
+              }
+              try {
+                if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
+                  map.addLayer(altLayer, 'gdx2.sta'); // Add LU layer above STA layer
+                } else {
+                  map.addLayer(altLayer);
+                }
+                map.triggerRepaint();
+              } catch (altError) {
+                console.error('Failed with alternative source-layer too', altError);
+              }
+            }
+          }
+        } else {
+          // Layer exists, just make sure it's visible
+          if (map.getLayoutProperty(layerId, 'visibility') === 'none') {
+            map.setLayoutProperty(layerId, 'visibility', 'visible');
+          }
+        }
+
+        // Add highlight layer if there are highlighted features
+        let highlightedIds: string[] = [];
+        if (layer.name === 'stp' && highlightedPoints.size > 0) {
+          highlightedIds = Array.from(highlightedPoints);
+        } else if (layer.name === 'stl' && highlightedLines.size > 0) {
+          highlightedIds = Array.from(highlightedLines);
+        } else if (layer.name === 'sta' && highlightedPolygons.size > 0) {
+          highlightedIds = Array.from(highlightedPolygons);
+        }
+
+        if (highlightedIds.length > 0) {
+          if (!map.getLayer(highlightLayerId)) {
+            const highlightLayer = { ...config.layer };
+            highlightLayer.id = highlightLayerId;
+            highlightLayer.filter = ['in', 'id', ...highlightedIds.map(id => parseInt(id))];
+            // Modify style for highlight
+            if (highlightLayer.type === 'circle') {
+              highlightLayer.paint = {
+                ...highlightLayer.paint,
+                'circle-color': 'red',
+                'circle-radius': 6,
+              };
+            } else if (highlightLayer.type === 'line') {
+              highlightLayer.paint = {
+                ...highlightLayer.paint,
+                'line-color': 'red',
+                'line-width': 3,
+              };
+            } else if (highlightLayer.type === 'fill') {
+              highlightLayer.paint = {
+                ...highlightLayer.paint,
+                'fill-color': 'red',
+                'fill-opacity': 0.8,
+              };
+            }
+            map.addLayer(highlightLayer, layerId); // Add above the main layer
+            map.triggerRepaint();
+          }
+        } else {
+          // Remove highlight layer if no highlights
+          if (map.getLayer(highlightLayerId)) {
+            map.removeLayer(highlightLayerId);
+          }
+        }
+      } else {
+        // Remove layer if exists
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId);
+        }
+        // Remove highlight layer
+        if (map.getLayer(highlightLayerId)) {
+          map.removeLayer(highlightLayerId);
+        }
+        // For lu, remove labels too (removed - lu_labels no longer exists)
+        // if (layer.name === 'lu') {
+        //   const labelsConfig = layersConfig.lu_labels;
+        //   const labelsId = labelsConfig.layer.id;
+        //   if (map.getLayer(labelsId)) {
+        //     console.log('Removing layer', labelsId);
+        //     map.removeLayer(labelsId);
+        //   }
+        // }
+        // Remove source if exists (only if no other layers use it)
+        if (map.getSource(sourceId)) {
+          // Check if any layers use this source
+          const layersUsingSource = Object.values(layersConfig).filter(c => c.layer.source === sourceId);
+          const activeLayers = layersUsingSource.filter(c => map.getLayer(c.layer.id));
+          if (activeLayers.length === 0) {
+            map.removeSource(sourceId);
+          }
+        }
+      }
+    });
+
+    // Ensure LU layer is always above STA layer, even if added later
+    if (map.getLayer('gdx2.lu') && map.getLayer('gdx2.sta')) {
+      map.moveLayer('gdx2.lu', 'gdx2.sta'); // Move LU layer above STA layer
+    }
+
+    // End redraw after a short delay to allow rendering
+    setTimeout(() => {
+      setIsMapRedrawing(false);
+      onRedrawEnd?.();
+    }, 100);
+  }, [mapLoaded, visibleLayers, layers, highlightedPoints, highlightedLines, highlightedPolygons, onRedrawStart, onRedrawEnd]);
+  const updateLayers = useCallback(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    onRedrawStart?.();
     // console.log('Adding layers', visibleLayers);
 
     const allLayers = layers;
@@ -364,6 +532,14 @@ export const MapView = forwardRef<any, {
 
     // Ensure LU layer is always above STA layer, even if added later
     if (map.getLayer('gdx2.lu') && map.getLayer('gdx2.sta')) {
+    // Ensure LU layer is always above STA layer, even if added later
+    if (map.getLayer('gdx2.lu') && map.getLayer('gdx2.sta')) {
+      map.moveLayer('gdx2.lu', 'gdx2.sta'); // Move LU layer above STA layer
+    }
+    // Ensure LU layer is always above STA layer, even if added later
+    if (map.getLayer('gdx2.lu') && map.getLayer('gdx2.sta')) {
+      map.moveLayer('gdx2.lu'); // Move LU layer to the top, above all other layers
+    }
       map.moveLayer('gdx2.lu', 'gdx2.sta'); // Move LU layer above STA layer
     }
 
