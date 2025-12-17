@@ -1,30 +1,28 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as maplibre from 'maplibre-gl';
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef, useMemo } from 'react';
 import ReactMapGL, {
   type MapRef,
   Marker,
   NavigationControl,
- type ViewState,
-} from 'react-map-gl/maplibre';
+  type ViewState,
+} from 'react-map-gl';
 import bbox from '@turf/bbox';
 import { layersConfig } from '../layers';
 import type { Layer, Feature, LngLat, BBox, SelectedAttributeRow, FilteredFeature, MapStyle } from '../types';
 
+import { useMapStore } from '../store';
+
 export const MapView = forwardRef<any, {
   styleUrl: string | MapStyle | null;
- visibleLayers: Set<string>;
-  layers: Layer[];
-  onFeaturesHover: (features: Feature[]) => void;
+ layers: Layer[];
+ onFeaturesHover: (features: Feature[]) => void;
   enableHover: boolean;
   infoMode: 'points' | 'lines' | 'polygons' | null;
   onClick: (features: Feature[], lngLat: LngLat) => void;
  marker: LngLat | null;
   markerLuName?: string;
   onMouseMoveCoords: (coords: LngLat | null) => void;
-  highlightedPoints: Set<string>;
-  highlightedLines: Set<string>;
-  highlightedPolygons: Set<string>;
   onZoomChange: (zoom: number) => void;
   selectedFeature: Feature | null;
   hoveredFeature: Feature | null;
@@ -37,31 +35,27 @@ export const MapView = forwardRef<any, {
   luPolygonFeature?: Feature | null; // Добавляем проп для отображения полигона ЛУ
 }>(({
   styleUrl,
- visibleLayers,
-  layers,
+ layers,
   onFeaturesHover,
   enableHover,
   infoMode,
   onClick,
   marker,
   markerLuName,
- onMouseMoveCoords,
- highlightedPoints,
-  highlightedLines,
-  highlightedPolygons,
+  onMouseMoveCoords,
   onZoomChange,
   selectedFeature,
- hoveredFeature,
+  hoveredFeature,
   selectedAttributeRow,
   onRedrawStart,
- onRedrawEnd,
+  onRedrawEnd,
   filteredFeature,
- rectangleSelection,
+  rectangleSelection,
   onRectangleSelect,
   luPolygonFeature  // Добавляем проп в деструктуризацию
 }, ref) => {
- const targetLayerNames = ['stp', 'stl', 'sta'];
- const mapRef = useRef<MapRef | null>(null);
+  const targetLayerNames = ['stp', 'stl', 'sta'];
+  const mapRef = useRef<MapRef | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [rectangleStart, setRectangleStart] = useState<{lng: number, lat: number} | null>(null);
   const [rectangleCurrent, setRectangleCurrent] = useState<{lng: number, lat: number} | null>(null);
@@ -77,10 +71,18 @@ export const MapView = forwardRef<any, {
     pitch: 0,
   });
 
+  // Подписываемся на нужные состояния из стора
+  const visibleLayers = useMapStore(state => state.visibleLayers);
+
+  // Мемоизируем строковое представление visibleLayers для оптимизации
+  const visibleLayersString = useMemo(() => {
+    return Array.from(visibleLayers).sort().join(',');
+  }, [visibleLayers]);
+
   const onMove = useCallback((evt: { viewState: ViewState }) => {
     setViewState(evt.viewState);
     onZoomChange(evt.viewState.zoom);
-  }, [onZoomChange]);
+ }, [onZoomChange]);
 
   const onMouseMove = useCallback((evt: any) => {
     if (!mapLoaded) return;
@@ -203,7 +205,6 @@ export const MapView = forwardRef<any, {
     if (!map) return;
 
     onRedrawStart?.();
-    // console.log('Adding/removing layers', visibleLayers);
 
     const allLayers = layers;
 
@@ -221,7 +222,7 @@ export const MapView = forwardRef<any, {
           try {
             map.addSource(sourceId, config.source);
             // Wait for source to load and check available source-layers
-            map.once('sourcedata', (e) => {
+            map.once('sourcedata', (e: any) => {
               if (e.sourceId === sourceId && e.isSourceLoaded) {
                 const source = map.getSource(sourceId) as any;
                 if (source && source.vectorLayers) {
@@ -244,9 +245,9 @@ export const MapView = forwardRef<any, {
           try {
             // Ensure LU layer is above STA layer when added
             if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
-              map.addLayer(config.layer, 'gdx2.sta'); // Add LU layer above STA layer
+              map.addLayer(config.layer as any, 'gdx2.sta'); // Add LU layer above STA layer
             } else {
-              map.addLayer(config.layer);
+              map.addLayer(config.layer as any);
             }
             map.triggerRepaint();
           } catch (error: any) {
@@ -262,9 +263,9 @@ export const MapView = forwardRef<any, {
               }
               try {
                 if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
-                  map.addLayer(altLayer, 'gdx2.sta'); // Add LU layer above STA layer
+                  map.addLayer(altLayer as any, 'gdx2.sta'); // Add LU layer above STA layer
                 } else {
-                  map.addLayer(altLayer);
+                  map.addLayer(altLayer as any);
                 }
                 map.triggerRepaint();
               } catch (altError) {
@@ -274,11 +275,15 @@ export const MapView = forwardRef<any, {
           }
         }
         // Make sure layer is visible if it should be
-        if (map.getLayer(layerId) && map.getLayoutProperty(layerId, 'visibility') === 'none' && visibleLayers.has(layer.name)) {
+        if (map.getLayer(layerId) && map.getLayoutProperty(layerId, 'visibility') === 'none') {
           map.setLayoutProperty(layerId, 'visibility', 'visible');
         }
 
         // Add highlight layer if there are highlighted features
+        const highlightedPoints = useMapStore.getState().highlightedPoints;
+        const highlightedLines = useMapStore.getState().highlightedLines;
+        const highlightedPolygons = useMapStore.getState().highlightedPolygons;
+        
         let highlightedIds: string[] = [];
         if (layer.name === 'stp' && highlightedPoints.size > 0) {
           highlightedIds = Array.from(highlightedPoints);
@@ -313,7 +318,7 @@ export const MapView = forwardRef<any, {
                 'fill-opacity': 0.8,
               };
             }
-            map.addLayer(highlightLayer, layerId); // Add above the main layer
+            map.addLayer(highlightLayer as any, layerId); // Add above the main layer
             map.triggerRepaint();
           }
         } else {
@@ -343,7 +348,7 @@ export const MapView = forwardRef<any, {
     setTimeout(() => {
       onRedrawEnd?.();
     }, 100);
-  }, [mapLoaded, visibleLayers, layers, highlightedPoints, highlightedLines, highlightedPolygons, onRedrawStart, onRedrawEnd]);
+  }, [mapLoaded, layers, onRedrawStart, onRedrawEnd]); // Убираем visibleLayers из зависимостей updateLayers
 
   // Добавляем эффект для отображения полигона ЛУ поверх остальных слоев
   useEffect(() => {
@@ -388,7 +393,7 @@ export const MapView = forwardRef<any, {
           'line-color': '#ffff00',  // Желтый цвет для контура
           'line-width': 3
         }
-      });
+      } as any);
     } else {
       // Если полигона нет, удаляем слои
       if (map.getLayer(luPolygonOutlineLayerId)) {
@@ -401,7 +406,7 @@ export const MapView = forwardRef<any, {
         map.removeSource(luPolygonLayerId);
       }
     }
- }, [luPolygonFeature, mapLoaded]);
+  }, [luPolygonFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -440,7 +445,7 @@ export const MapView = forwardRef<any, {
               'fill-opacity': 0.9,
             };
           }
-          map.addLayer(selectedLayer); // Add above all layers
+          map.addLayer(selectedLayer as any); // Add above all layers
           map.triggerRepaint();
         }
       }
@@ -449,7 +454,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(selectedLayerId);
       }
     }
- }, [selectedFeature, mapLoaded]);
+  }, [selectedFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -486,7 +491,7 @@ export const MapView = forwardRef<any, {
               'fill-opacity': 0.7,
             };
           }
-          map.addLayer(hoverLayer); // Add above all layers
+          map.addLayer(hoverLayer as any); // Add above all layers
           map.triggerRepaint();
         }
       }
@@ -495,7 +500,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(hoverLayerId);
       }
     }
- }, [hoveredFeature, mapLoaded]);
+  }, [hoveredFeature, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -534,7 +539,7 @@ export const MapView = forwardRef<any, {
               'fill-opacity': 0.9,
             };
           }
-          map.addLayer(selectedAttributeLayer); // Add above all layers
+          map.addLayer(selectedAttributeLayer as any); // Add above all layers
           map.triggerRepaint();
         }
       }
@@ -543,7 +548,7 @@ export const MapView = forwardRef<any, {
         map.removeLayer(selectedAttributeLayerId);
       }
     }
- }, [selectedAttributeRow, mapLoaded]);
+  }, [selectedAttributeRow, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded || !selectedFeature?.geometry) return;
@@ -562,9 +567,10 @@ export const MapView = forwardRef<any, {
     }
   }, [selectedFeature, mapLoaded]);
 
- useEffect(() => {
+  // Используем строковое представление visibleLayers для оптимизации
+  useEffect(() => {
     updateLayers();
- }, [updateLayers, styleUrl]);
+  }, [mapLoaded, layers, visibleLayersString, updateLayers]); // Включаем updateLayers в зависимости, но используем строковое представление visibleLayers
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -687,7 +693,7 @@ export const MapView = forwardRef<any, {
   }, [filteredFeature, mapLoaded]);
 
   // Handle cursor style: arrow for rectangle selection, otherwise allow hover logic to set pointer
- useEffect(() => {
+  useEffect(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
@@ -697,7 +703,7 @@ export const MapView = forwardRef<any, {
     } else {
       map.getCanvas().style.cursor = '';
     }
- }, [rectangleSelection, mapLoaded]);
+  }, [rectangleSelection, mapLoaded]);
 
   // Clear local rectangle state when tool is turned off
  useEffect(() => {
@@ -749,6 +755,10 @@ export const MapView = forwardRef<any, {
           if (!map) return null;
           const p1 = map.project(rectangleStart as any) as any;
           const p2 = map.project(rectangleCurrent as any) as any;
+          // Проверяем, что p1 и p2 не null и содержат x и y
+          if (!p1 || !p2 || typeof p1.x === 'undefined' || typeof p1.y === 'undefined' || typeof p2.x === 'undefined' || typeof p2.y === 'undefined') {
+            return null;
+          }
           const left = Math.min(p1.x, p2.x);
           const top = Math.min(p1.y, p2.y);
           const width = Math.abs(p1.x - p2.x);

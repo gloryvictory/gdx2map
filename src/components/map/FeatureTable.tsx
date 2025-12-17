@@ -58,7 +58,7 @@ export const FeatureTable = ({
     { label: '№', key: 'id' },
   ];
 
-  const isSelected = selectedFeature && selectedFeature.properties.id === feature.properties.id;
+  const isSelected = selectedFeature && selectedFeature.properties?.id === feature.properties?.id;
 
   return (
     <ContextMenu>

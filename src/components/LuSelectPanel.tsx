@@ -30,7 +30,7 @@ export function LuSelectPanel({
        // 1. Query features from other layers that intersect with the selected LU geometry
        // 2. Update setFilteredFeatures with those features
      }
-   }, [selectedLu]);
+   }, [selectedLu?.properties?.id]); // Используем только ID для оптимизации
 
   return (
     <div className="h-full flex flex-col">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { AppHeader } from "./components/AppHeader";
 import { MapView } from "./components/Map";
@@ -14,7 +14,7 @@ import { Checkbox } from "./components/ui/checkbox";
 
 import {
   Dialog,
- DialogContent,
+  DialogContent,
   DialogHeader,
   DialogTitle,
 } from "./components/ui/dialog";
@@ -33,79 +33,75 @@ import type {
   LngLat,
 } from "./types";
 
+import { useMapStore } from './store';
+
 // Using shared Layer type
 
 export default function App() {
-  const [basemapKey, setBasemapKey] = useState<string>("osm");
-  const [showBaseMaps, setShowBaseMaps] = useState(false);
-  const [showLayers, setShowLayers] = useState(false);
-  const [showLegend, setShowLegend] = useState(false);
-  const [showAttributes, setShowAttributes] = useState(false);
- const [layers, setLayers] = useState<Layer[]>([]);
-  const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
-  const [hoveredFeatures, setHoveredFeatures] = useState<Feature[]>([]);
-  const [clickedFeatures, setClickedFeatures] = useState<Feature[]>([]);
-  const [showLuSelect, setShowLuSelect] = useState(false);
-  const [luFeatures, setLuFeatures] = useState<Feature[]>([]);
-  const [displayLuFeatures, setDisplayLuFeatures] = useState<Feature[]>([]);
-  const [selectedLu, setSelectedLu] = useState<Feature | null>(null);
-  const [luPolygonFeature, setLuPolygonFeature] = useState<Feature | null>(null); // Добавляем состояние для полигона ЛУ
- const [marker, setMarker] = useState<LngLat | null>(null);
-  const [markerLuName, setMarkerLuName] = useState<string | null>(null);
- const [showFeatureTable, setShowFeatureTable] = useState(false);
-  const [activeInfoMode, setActiveInfoMode] = useState<
-    "points" | "lines" | "polygons" | null
-  >(null);
-  const [showMarkerInfo, setShowMarkerInfo] = useState(false);
-  const [showMarkerAttributes, setShowMarkerAttributes] = useState(false);
-  const [activeTool, setActiveTool] = useState<
-    "info" | "hover-info" | "attributes" | "rectangle" | "lu-select" | null
- >(null);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [attributesPointsData, setAttributesPointsData] = useState<ReportRow[]>(
-    [],
-  );
-  const [attributesLinesData, setAttributesLinesData] = useState<ReportRow[]>(
-    [],
-  );
-  const [attributesPolygonsData, setAttributesPolygonsData] = useState<
-    ReportRow[]
-  >([]);
-  const [mouseCoords, setMouseCoords] = useState<LngLat | null>(null);
-  const [coordSystem, setCoordSystem] = useState<"EPSG:4326" | "EPSG:3857">(
-    "EPSG:4326",
-  );
-  const [currentZoom, setCurrentZoom] = useState<number>(2);
- const [highlightedPoints, setHighlightedPoints] = useState<Set<string>>(
-    new Set(),
-  );
- const [highlightedLines, setHighlightedLines] = useState<Set<string>>(
-    new Set(),
-  );
- const [highlightedPolygons, setHighlightedPolygons] = useState<Set<string>>(
-    new Set(),
-  );
- const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
-  const [hoveredFeature, setHoveredFeature] = useState<Feature | null>(null);
-  const [selectedAttributeRow, setSelectedAttributeRow] =
-    useState<SelectedAttributeRow | null>(null);
-  const [isMapRedrawing, setIsMapRedrawing] = useState(false);
- const [isFiltering, setIsFiltering] = useState(false);
-  const [filteredFeature, setFilteredFeature] =
-    useState<FilteredFeature | null>(null);
-  const [showRectangleSelection, setShowRectangleSelection] = useState(false);
-  const [showBboxDialog, setShowBboxDialog] = useState(false);
-  const [showReportCardDialog, setShowReportCardDialog] = useState(false);
-  const [reportCardData, setReportCardData] = useState<{row: any, type: 'points' | 'lines' | 'polygons'} | null>(null);
-  const [bboxData, setBboxData] = useState<{
-    minLng: number;
-    minLat: number;
-    maxLng: number;
-    maxLat: number;
-  } | null>(null);
-  const [isLuSearching, setIsLuSearching] = useState(false);
   const mapRef = useRef<any>(null);
+  
+  // Подписываемся на нужные состояния из стора
+  const {
+    basemapKey, setBasemapKey,
+    layers, setLayers,
+    visibleLayers,
+    hoveredFeatures, setHoveredFeatures,
+    clickedFeatures, setClickedFeatures,
+    showLuSelect, setShowLuSelect,
+    luFeatures, setLuFeatures,
+    displayLuFeatures, setDisplayLuFeatures,
+    selectedLu,
+    luPolygonFeature,
+    marker, setMarker,
+    markerLuName,
+    showFeatureTable, setShowFeatureTable,
+    activeInfoMode, setActiveInfoMode,
+    showMarkerInfo, setShowMarkerInfo,
+    showMarkerAttributes, setShowMarkerAttributes,
+    activeTool, setActiveTool,
+    theme, setTheme,
+    attributesPointsData, setAttributesPointsData,
+    attributesLinesData, setAttributesLinesData,
+    attributesPolygonsData, setAttributesPolygonsData,
+    mouseCoords, setMouseCoords,
+    coordSystem, setCoordSystem,
+    currentZoom, setCurrentZoom,
+    highlightedPoints, setHighlightedPoints,
+    highlightedLines, setHighlightedLines,
+    highlightedPolygons, setHighlightedPolygons,
+    selectedFeature, setSelectedFeature,
+    hoveredFeature, setHoveredFeature,
+    selectedAttributeRow, setSelectedAttributeRow,
+    isMapRedrawing, setIsMapRedrawing,
+    isFiltering, setIsFiltering,
+    filteredFeature, setFilteredFeature,
+    showRectangleSelection, setShowRectangleSelection,
+    showBboxDialog, setShowBboxDialog,
+    showReportCardDialog, setShowReportCardDialog,
+    reportCardData, setReportCardData,
+    bboxData, setBboxData,
+    isLuSearching, setIsLuSearching,
+    originalLuFeatures, setOriginalLuFeatures,
+    showLayers, setShowLayers,
+    showBaseMaps, setShowBaseMaps,
+    showLegend, setShowLegend,
+    showAttributes, setShowAttributes,
+    
+    // Actions
+    clearSelectedFeatures,
+    clearMapSelections,
+    updateAttributesData,
+    toggleHighlightPoints,
+    toggleHighlightLines,
+    toggleHighlightPolygons,
+    handleFilterToFeature,
+    handleClearFilter,
+    handleAttributeRowSelect,
+    handleLuSelect,
+    handleLayerToggle,
+  } = useMapStore();
 
+  // Загрузка слоев при монтировании компонента
   useEffect(() => {
     fetch(`${TILE_SERVER_URL}/index.json`)
       .then((response) => response.json())
@@ -161,32 +157,15 @@ export default function App() {
         setLayers(fetchedLayers);
         // Set all visible
         const initialVisible = new Set(fetchedLayers.map((l) => l.name));
-        setVisibleLayers(initialVisible);
+        useMapStore.getState().setVisibleLayers(initialVisible);
       })
       .catch((error) => console.error("Failed to fetch layers:", error));
- });
+  }, [setLayers]);
+
   const style = useMemo(() => {
     const found = ALL_BASEMAPS.find((b) => b.key === basemapKey);
     return found ? found.url : LIGHT_MAP_STYLE;
   }, [basemapKey]);
-
-  const clearSelectedFeatures = () => {
-    setSelectedFeature(null);
-    setHoveredFeature(null);
-    setSelectedAttributeRow(null);
-    setHighlightedPoints(new Set());
-    setHighlightedLines(new Set());
-    setHighlightedPolygons(new Set());
-  };
-
-  const clearMapSelections = () => {
-    // Clear only map selections, but preserve attribute panel data
-    setSelectedFeature(null);
-    setHoveredFeature(null);
-    setHighlightedPoints(new Set());
-    setHighlightedLines(new Set());
-    setHighlightedPolygons(new Set());
-  };
 
   const handleLayersClick = () => {
     if (showLayers) {
@@ -230,18 +209,6 @@ export default function App() {
       setShowBaseMaps(false);
       setShowAttributes(false);
     }
-  };
-
-  const handleLayerToggle = (layerName: string, checked: boolean) => {
-    setVisibleLayers((prev) => {
-      const newSet = new Set(prev);
-      if (checked) {
-        newSet.add(layerName);
-      } else {
-        newSet.delete(layerName);
-      }
-      return newSet;
-    });
   };
 
   const handleBasemapSelect = (key: string) => {
@@ -328,75 +295,32 @@ export default function App() {
      }
    }, [hoveredFeatures, activeInfoMode, selectedFeature, setSelectedFeature, setAttributesPointsData, setAttributesLinesData, setAttributesPolygonsData, setHoveredFeature, hoveredFeature, selectedAttributeRow, showMarkerInfo]);
 
-
- const updateAttributesData = (features: Feature[]) => {
-    const points: ReportRow[] = [];
-    const lines: ReportRow[] = [];
-    const polygons: ReportRow[] = [];
-
-    features.forEach((feature) => {
-      const type = feature.layer.id.split(".")[1];
-      if (type === "stp") {
-        points.push(feature.properties);
-      } else if (type === "stl") {
-        lines.push(feature.properties);
-      } else if (type === "sta") {
-        polygons.push(feature.properties);
-      }
-    });
-
-    setAttributesPointsData(points);
-    setAttributesLinesData(lines);
-    setAttributesPolygonsData(polygons);
+  const toggleHighlightPointsLocal = () => {
+    toggleHighlightPoints();
+    // Ensure layer is visible
+    const state = useMapStore.getState();
+    const newVisibleLayers = new Set(state.visibleLayers);
+    newVisibleLayers.add("stp");
+    useMapStore.getState().setVisibleLayers(newVisibleLayers);
   };
 
-  const toggleHighlightPoints = () => {
-    if (highlightedPoints.size > 0) {
-      setHighlightedPoints(new Set());
-    } else {
-      const ids = new Set<string>(
-        attributesPointsData
-          .map((item) => item.id)
-          .filter((v): v is string | number => v != null)
-          .map((v) => v.toString()),
-      );
-      setHighlightedPoints(ids);
-      // Ensure layer is visible
-      setVisibleLayers((prev) => new Set([...prev, "stp"]));
-    }
- };
-
-  const toggleHighlightLines = () => {
-    if (highlightedLines.size > 0) {
-      setHighlightedLines(new Set());
-    } else {
-      const ids = new Set<string>(
-        attributesLinesData
-          .map((item) => item.id)
-          .filter((v): v is string | number => v != null)
-          .map((v) => v.toString()),
-      );
-      setHighlightedLines(ids);
-      // Ensure layer is visible
-      setVisibleLayers((prev) => new Set([...prev, "stl"]));
-    }
+  const toggleHighlightLinesLocal = () => {
+    toggleHighlightLines();
+    // Ensure layer is visible
+    const state = useMapStore.getState();
+    const newVisibleLayers = new Set(state.visibleLayers);
+    newVisibleLayers.add("stl");
+    useMapStore.getState().setVisibleLayers(newVisibleLayers);
   };
 
-  const toggleHighlightPolygons = () => {
-    if (highlightedPolygons.size > 0) {
-      setHighlightedPolygons(new Set());
-    } else {
-      const ids = new Set<string>(
-        attributesPolygonsData
-          .map((item) => item.id)
-          .filter((v): v is string | number => v != null)
-          .map((v) => v.toString()),
-      );
-      setHighlightedPolygons(ids);
-      // Ensure layer is visible
-      setVisibleLayers((prev) => new Set([...prev, "sta"]));
-    }
- };
+  const toggleHighlightPolygonsLocal = () => {
+    toggleHighlightPolygons();
+    // Ensure layer is visible
+    const state = useMapStore.getState();
+    const newVisibleLayers = new Set(state.visibleLayers);
+    newVisibleLayers.add("sta");
+    useMapStore.getState().setVisibleLayers(newVisibleLayers);
+  };
 
   const handleFeatureSelect = (feature: Feature | null) => {
     setSelectedFeature(feature);
@@ -435,53 +359,54 @@ export default function App() {
 
  // Handle map click when marker attributes mode is active
  const handleMapClickWithMarkerAttributes = (
-    features: Feature[],
-    lngLat: LngLat,
-  ) => {
-    if (showMarkerAttributes) {
-      // Update clicked features and transfer to attributes
-      // But according to requirements, don't update attributes panel when using "Info under marker"
-      setClickedFeatures(features);
-      updateAttributesData(features);
-      setMarker(lngLat);
-      // Show attributes panel when using marker attributes
-      setShowAttributes(true);
-    } else if (activeInfoMode) {
-      // When info mode is active, clicking on a feature should select it
-      if (features.length > 0) {
-        // Select the first feature from the clicked features
-        setSelectedFeature(features[0]);
-        // Set it as the hovered feature as well for highlighting
-        setHoveredFeature(features[0]);
-        // Update attributes data to show only the selected feature
-        // But according to requirements, don't update if we're in marker info mode
-        if (!showMarkerInfo) {
-          updateAttributesData([features[0]]);
-        }
-        // According to requirements, don't show attributes panel when using "Info under marker"
-        // setShowAttributes(true);
-      } else {
-        // If clicked on empty space, deselect any selected feature
-        setSelectedFeature(null);
-        setHoveredFeature(null);
-      }
-    } else {
-      // Default behavior
-      setClickedFeatures(features);
-      if (showMarkerInfo) {
-        setMarker(lngLat);
-        // When marker info is active, also update attributes data to show clicked features
-        // But according to requirements, we should NOT update attributes panel when using "Info under marker"
-        // updateAttributesData(features);
-        // setShowAttributes(true);
-      }
-    }
-  };
+   features: Feature[],
+   lngLat: LngLat,
+ ) => {
+   if (showMarkerAttributes) {
+     // Update clicked features and transfer to attributes
+     // But according to requirements, don't update attributes panel when using "Info under marker"
+     setClickedFeatures(features);
+     // Проверяем, что features определены перед обновлением атрибутов
+     if (features && features.length > 0) {
+       updateAttributesData(features);
+     }
+     setMarker(lngLat);
+     // Show attributes panel when using marker attributes
+     setShowAttributes(true);
+   } else if (activeInfoMode) {
+     // When info mode is active, clicking on a feature should select it
+     if (features.length > 0) {
+       // Select the first feature from the clicked features
+       setSelectedFeature(features[0]);
+       // Set it as the hovered feature as well for highlighting
+       setHoveredFeature(features[0]);
+       // Update attributes data to show only the selected feature
+       // But according to requirements, don't update if we're in marker info mode
+       if (!showMarkerInfo) {
+         updateAttributesData([features[0]]);
+       }
+       // According to requirements, don't show attributes panel when using "Info under marker"
+       // setShowAttributes(true);
+     } else {
+       // If clicked on empty space, deselect any selected feature
+       setSelectedFeature(null);
+       setHoveredFeature(null);
+     }
+   } else {
+     // Default behavior
+     setClickedFeatures(features);
+     if (showMarkerInfo) {
+       setMarker(lngLat);
+       // When marker info is active, also update attributes data to show clicked features
+       // But according to requirements, we should NOT update attributes panel when using "Info under marker"
+       // updateAttributesData(features);
+       // setShowAttributes(true);
+     }
+   }
+ };
 
 
   // Load LU features when LU layer becomes visible and we're in LU select mode
-    const [originalLuFeatures, setOriginalLuFeatures] = useState<Feature[]>([]);
-    
     // Separate effect for loading LU features only when LU selection panel is opened
     useEffect(() => {
       if (showLuSelect && visibleLayers.has("lu")) {
@@ -549,28 +474,24 @@ export default function App() {
       }
     }, [originalLuFeatures, showLuSelect]);
 
-  const handleFilterToFeature = (
+  const handleFilterToFeatureLocal = (
     row: ReportRow,
     type: "points" | "lines" | "polygons",
   ) => {
-    setIsFiltering(true);
-    setFilteredFeature({ row, type });
+    handleFilterToFeature(row, type);
     // Ensure layer is visible
-    const layerName =
-      type === "points" ? "stp" : type === "lines" ? "stl" : "sta";
-    setVisibleLayers(prev => new Set([...prev, layerName])); // Make sure the layer is visible
+    const layerName = type === "points" ? "stp" : type === "lines" ? "stl" : "sta";
+    const state = useMapStore.getState();
+    const newVisibleLayers = new Set(state.visibleLayers);
+    newVisibleLayers.add(layerName);
+    useMapStore.getState().setVisibleLayers(newVisibleLayers);
 
     // Apply filter to show only the selected feature
     setTimeout(() => {
       if (mapRef.current && row) {
         const map = mapRef.current.getMap();
-        const fullLayerName =
-          type === "points"
-            ? "gdx2.stp"
-            : type === "lines"
-              ? "gdx2.stl"
-              : "gdx2.sta";
-        
+        const fullLayerName = type === "points" ? "gdx2.stp" : type === "lines" ? "gdx2.stl" : "gdx2.sta";
+    
         // Apply filter to show only the selected feature in the target layer
         // Try both string and number comparison for id
         const idValue = row.id;
@@ -626,7 +547,7 @@ export default function App() {
               
               if (sourceFeatures.length > 0) {
                 const feature = sourceFeatures[0];
-                const geometry = feature.geometry as any;
+                const geometry = feature.geometry as any; // Type assertion to handle different geometry types
                 if (geometry.type === 'Point') {
                   const coords = geometry.coordinates as [number, number];
                   if (coords && coords.length >= 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
@@ -675,20 +596,11 @@ export default function App() {
     }, 100);
   };
 
-  const handleClearFilter = (type: "points" | "lines" | "polygons") => {
-    setIsFiltering(true);
-    setFilteredFeature(null);
-    // Restore all layers
-    const allLayers = ["field", "lu", "sta", "stl", "stp"];
-    setVisibleLayers(new Set(allLayers));
+  const handleClearFilterLocal = (type: "points" | "lines" | "polygons") => {
+    handleClearFilter(type);
     if (mapRef.current) {
       const map = mapRef.current.getMap();
-      const layerName =
-        type === "points"
-          ? "gdx2.stp"
-          : type === "lines"
-            ? "gdx2.stl"
-            : "gdx2.sta";
+      const layerName = type === "points" ? "gdx2.stp" : type === "lines" ? "gdx2.stl" : "gdx2.sta";
       map.setFilter(layerName, null);
       
       // Show all layers
@@ -711,12 +623,7 @@ export default function App() {
   ) => {
     if (mapRef.current && row) {
       const map = mapRef.current.getMap();
-      const layerName =
-        type === "points"
-          ? "gdx2.stp"
-          : type === "lines"
-            ? "gdx2.stl"
-            : "gdx2.sta";
+      const layerName = type === "points" ? "gdx2.stp" : type === "lines" ? "gdx2.stl" : "gdx2.sta";
       const sourceId = layerName;
       const sourceLayer = layerName.split(".")[1];
 
@@ -739,240 +646,148 @@ export default function App() {
         setShowBboxDialog(true);
       }
     }
- };
+  };
 
-  const handleAttributeRowSelect = (
+  const handleAttributeRowSelectLocal = (
     row: ReportRow,
     type: "points" | "lines" | "polygons",
   ) => {
-    if (
-      selectedAttributeRow &&
-      selectedAttributeRow.data.id === row.id &&
-      selectedAttributeRow.type === type
-    ) {
-      // Deselect if clicking the same row
-      setSelectedAttributeRow(null);
-      setSelectedFeature(null); // Also clear feature selection
-    } else {
-      setSelectedAttributeRow({ data: row, type });
-      setSelectedFeature(null); // Clear feature selection when selecting attribute row
-      // Don't clear filteredFeature - keep it so the table data remains visible
+    handleAttributeRowSelect(row, type);
 
-      // Ensure layer is visible for highlighting
-      const layerName =
-        type === "points" ? "stp" : type === "lines" ? "stl" : "sta";
-      setVisibleLayers((prev) => new Set([...prev, layerName]));
-
-      // Always zoom to the feature when selecting
-      const zoomToFeature = () => {
-        if (mapRef.current && row) {
-          const map = mapRef.current.getMap();
-          // Query rendered features instead of source features for better coordinate access
-          const layerName =
-            type === "points"
-              ? "gdx2.stp"
-              : type === "lines"
-                ? "gdx2.stl"
-                : "gdx2.sta";
-          const features = map.queryRenderedFeatures(undefined, {
-            layers: [layerName],
-            filter: ["==", "id", row.id],
-          });
-          if (features.length > 0) {
-            const feature = features[0];
-            const geometry = feature.geometry as any;
-            if (type === "points") {
-              const center = geometry.coordinates as [number, number];
-              // Check if coordinates are valid numbers
-              if (center && center.length >= 2 && !isNaN(center[0]) && !isNaN(center[1])) {
-                map.flyTo({ center, zoom: 12, duration: 1000 });
-              }
-            } else {
-              // For lines and polygons, use Turf.js bbox for accurate bounding box calculation
-              const featureForBbox = {
-                type: 'Feature' as const,
-                properties: {},
-                geometry: geometry
-              };
-              
-              const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-              // Check if bbox values are valid numbers
-              if (!isNaN(minLng) && !isNaN(minLat) && !isNaN(maxLng) && !isNaN(maxLat)) {
-                map.fitBounds(
-                  [
-                    [minLng, minLat],
-                    [maxLng, maxLat],
-                  ],
-                  { padding: 80, duration: 1000 },
-                );
-              }
+    // Always zoom to the feature when selecting
+    const zoomToFeature = () => {
+      if (mapRef.current && row) {
+        const map = mapRef.current.getMap();
+        // Query rendered features instead of source features for better coordinate access
+        const layerName = type === "points" ? "gdx2.stp" : type === "lines" ? "gdx2.stl" : "gdx2.sta";
+        const features = map.queryRenderedFeatures(undefined, {
+          layers: [layerName],
+          filter: ["==", "id", row.id],
+        });
+        if (features.length > 0) {
+          const feature = features[0];
+          const geometry = feature.geometry as any;
+          if (type === "points") {
+            const center = geometry.coordinates as [number, number];
+            // Check if coordinates are valid numbers
+            if (center && center.length >= 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+              map.flyTo({ center, zoom: 12, duration: 1000 });
             }
           } else {
-            // If no features found, try again after a longer delay (maybe layer is still loading)
-            setTimeout(zoomToFeature, 200);
+            // For lines and polygons, use Turf.js bbox for accurate bounding box calculation
+            const featureForBbox = {
+              type: 'Feature' as const,
+              properties: {},
+              geometry: geometry
+            };
+            
+            const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+            // Check if bbox values are valid numbers
+            if (!isNaN(minLng) && !isNaN(minLat) && !isNaN(maxLng) && !isNaN(maxLat)) {
+              map.fitBounds(
+                [
+                  [minLng, minLat],
+                  [maxLng, maxLat],
+                ],
+                { padding: 80, duration: 1000 },
+              );
+            }
           }
+        } else {
+          // If no features found, try again after a longer delay (maybe layer is still loading)
+          setTimeout(zoomToFeature, 200);
         }
-      };
-      
-      setTimeout(zoomToFeature, 10); // Small delay to ensure state updates are processed
-    }
+      }
+    };
+    
+    setTimeout(zoomToFeature, 10); // Small delay to ensure state updates are processed
   };
 
   // Обновляем функцию для обработки выбора ЛУ, чтобы использовать геометрию из существующего объекта
-  const handleLuSelect = (lu: Feature | null, showInfo = true) => {
-    if (lu) {
-      // Check if this is a marker placement action (same LU selected)
-      if (selectedLu && selectedLu.properties.id === lu.properties.id) {
-        // Place marker at the center of the LU
-        const geometry = lu.geometry;
-        let centerLngLat: LngLat | null = null;
-        
-        // Calculate center based on geometry type
-        if (geometry.type === 'Point') {
-          centerLngLat = { lng: geometry.coordinates[0], lat: geometry.coordinates[1] };
-        } else {
-          // For polygons and other geometries, calculate bbox and use center
-          const featureForBbox = {
-            type: 'Feature' as const,
-            properties: {},
-            geometry: geometry
-          };
-          const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
-          centerLngLat = {
-            lng: (minLng + maxLng) / 2,
-            lat: (minLat + maxLat) / 2
-          };
-        }
-        
-        if (centerLngLat) {
-          setMarker(centerLngLat);
-          // Set the LU name for the marker
-          setMarkerLuName(lu.properties.name_rus || lu.properties.name || `Участок ${lu.properties.id}`);
-          // Only show marker info if explicitly requested (default is true)
-          if (showInfo) {
-            setShowMarkerInfo(true);
-            setActiveTool("info");
-          } else {
-            // If not showing info, make sure it's hidden
-            setShowMarkerInfo(false);
-            setActiveTool(null);
-          }
-          // Set the marker coordinates as the current marker position
-          // This will display the marker on the map with the LU name
-        }
-      } else {
-        // Different LU selected - reset marker and set new LU
-        setMarker(null);
-        // Update selected LU
-        setSelectedLu(lu);
-        setSelectedAttributeRow(null);
-        
-        // Clear previous attribute data before loading new data
-        setAttributesPolygonsData([]);
-        setAttributesLinesData([]);
-        setAttributesPointsData([]);
-        
-        // Set loading state
-        setIsLuSearching(true);
-        
-        // Use the geometry from the selected LU feature directly (no CQL request needed)
-        setLuPolygonFeature(lu);
-        
-        // Additionally, zoom to the LU using its bbox if selected
-        if (mapRef.current && lu.geometry) {
+  const handleLuSelectLocal = (lu: Feature | null, showInfo = true) => {
+    handleLuSelect(lu, showInfo);
+    
+    // Additionally, zoom to the LU using its bbox if selected
+    if (mapRef.current && lu?.geometry) {
+      const map = mapRef.current.getMap();
+      const geometry = lu.geometry;
+      
+      // Create a feature for bbox calculation
+      const featureForBbox = {
+        type: 'Feature' as const,
+        properties: {},
+        geometry: geometry
+      };
+      
+      // Calculate bbox
+      const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+      
+      // Zoom to the bbox
+      map.fitBounds([
+        [minLng, minLat],
+        [maxLng, maxLat]
+      ], {
+        padding: 50,
+        duration: 1000
+      });
+      
+      // Query features within the LU area and populate attribute tables
+      const searchFeatures = (retryCount = 0) => {
+        if (mapRef.current) {
           const map = mapRef.current.getMap();
-          const geometry = lu.geometry;
           
-          // Create a feature for bbox calculation
-          const featureForBbox = {
-            type: 'Feature' as const,
-            properties: {},
-            geometry: geometry
+          // Query features from sta, stl, stp layers
+          const staFeatures = map.queryRenderedFeatures({ layers: ['gdx2.sta'] });
+          const stlFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stl'] });
+          const stpFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stp'] });
+          
+          // Filter features that intersect with the selected LU
+          const luBbox = bbox(featureForBbox);
+          
+          // For simplicity, we'll include all features that are within the LU bbox
+          // A more accurate implementation would check for actual intersection
+          const filterFeaturesInLu = (features: any[]) => {
+            return features.filter((feature: any) => {
+              const featureBbox = bbox({
+                type: 'Feature',
+                properties: {},
+                geometry: feature.geometry
+              });
+              
+              // Check if feature bbox intersects with LU bbox
+              return !(featureBbox[2] < luBbox[0] ||
+                     featureBbox[0] > luBbox[2] ||
+                     featureBbox[3] < luBbox[1] ||
+                     featureBbox[1] > luBbox[3]);
+            });
           };
           
-          // Calculate bbox
-          const [minLng, minLat, maxLng, maxLat] = bbox(featureForBbox);
+          const filteredSta = filterFeaturesInLu(staFeatures);
+          const filteredStl = filterFeaturesInLu(stlFeatures);
+          const filteredStp = filterFeaturesInLu(stpFeatures);
           
-          // Zoom to the bbox
-          map.fitBounds([
-            [minLng, minLat],
-            [maxLng, maxLat]
-          ], {
-            padding: 50,
-            duration: 1000
-          });
+          // If no features found and we haven't reached max retries, wait and try again
+          if ((filteredSta.length === 0 && filteredStp.length === 0 && filteredStl.length === 0) && retryCount < 3) {
+            setTimeout(() => searchFeatures(retryCount + 1), 200);
+            return;
+          }
           
-          // Query features within the LU area and populate attribute tables
-          const searchFeatures = (retryCount = 0) => {
-            if (mapRef.current) {
-              const map = mapRef.current.getMap();
-              
-              // Query features from sta, stl, stp layers
-              const staFeatures = map.queryRenderedFeatures({ layers: ['gdx2.sta'] });
-              const stlFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stl'] });
-              const stpFeatures = map.queryRenderedFeatures({ layers: ['gdx2.stp'] });
-              
-              // Filter features that intersect with the selected LU
-              const luBbox = bbox(featureForBbox);
-              
-              // For simplicity, we'll include all features that are within the LU bbox
-              // A more accurate implementation would check for actual intersection
-              const filterFeaturesInLu = (features: any[]) => {
-                return features.filter((feature: any) => {
-                  const featureBbox = bbox({
-                    type: 'Feature',
-                    properties: {},
-                    geometry: feature.geometry
-                  });
-                  
-                  // Check if feature bbox intersects with LU bbox
-                  return !(featureBbox[2] < luBbox[0] ||
-                         featureBbox[0] > luBbox[2] ||
-                         featureBbox[3] < luBbox[1] ||
-                         featureBbox[1] > luBbox[3]);
-                });
-              };
-              
-              const filteredSta = filterFeaturesInLu(staFeatures);
-              const filteredStl = filterFeaturesInLu(stlFeatures);
-              const filteredStp = filterFeaturesInLu(stpFeatures);
-              
-              // If no features found and we haven't reached max retries, wait and try again
-              if ((filteredSta.length === 0 && filteredStp.length === 0 && filteredStl.length === 0) && retryCount < 3) {
-                setTimeout(() => searchFeatures(retryCount + 1), 200);
-                return;
-              }
-              
-              // Update attribute tables
-              setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
-              setAttributesLinesData(filteredStl.map((f: any) => f.properties));
-              setAttributesPointsData(filteredStp.map((f: any) => f.properties));
-              
-              // Show attributes panel
-              setShowAttributes(true);
-            }
-            // End loading state
-            setIsLuSearching(false);
-          };
+          // Update attribute tables
+          setAttributesPolygonsData(filteredSta.map((f: any) => f.properties));
+          setAttributesLinesData(filteredStl.map((f: any) => f.properties));
+          setAttributesPointsData(filteredStp.map((f: any) => f.properties));
           
-          // Start searching immediately, with retry logic
-          setTimeout(() => searchFeatures(0), 100);
-        } else {
-          // End loading state if no geometry
-          setIsLuSearching(false);
+          // Show attributes panel
+          setShowAttributes(true);
         }
-      }
+        // End loading state
+        setIsLuSearching(false);
+      };
+      
+      // Start searching immediately, with retry logic
+      setTimeout(() => searchFeatures(0), 100);
     } else {
-      // Deselect LU
-      setSelectedLu(null);
-      setMarker(null);
-      setMarkerLuName(null);
-      setAttributesPolygonsData([]);
-      setAttributesLinesData([]);
-      setAttributesPointsData([]);
-      // Clear the LU polygon feature when deselecting
-      setLuPolygonFeature(null);
-      // End loading state
+      // End loading state if no geometry
       setIsLuSearching(false);
     }
   };
@@ -1181,7 +996,9 @@ export default function App() {
                     setClickedFeatures([]);
                     // Temporarily ensure LU layer is visible for loading features
                     if (!visibleLayers.has("lu")) {
-                      setVisibleLayers(prev => new Set(prev).add("lu"));
+                      const newVisibleLayers = new Set(visibleLayers);
+                      newVisibleLayers.add("lu");
+                      useMapStore.getState().setVisibleLayers(newVisibleLayers);
                     }
                     // Load LU features if not already loaded
                     // Feature loading is now handled by useEffect hook
@@ -1206,7 +1023,7 @@ export default function App() {
                 }}
                 luFeatures={displayLuFeatures}
                 selectedLu={selectedLu}
-                onLuSelect={handleLuSelect} // Используем обновленную функцию
+                onLuSelect={handleLuSelectLocal} // Используем обновленную функцию
                 onExportLuToExcel={(lu) => {
                   exportLuFeaturesToExcel(
                     lu,
@@ -1246,14 +1063,13 @@ export default function App() {
                 onClearSelectedFeatures={clearSelectedFeatures}
                 onClearMapSelections={clearMapSelections}
                 filteredFeature={filteredFeature}
-                onFilterToFeature={handleFilterToFeature}
-                onClearFilter={handleClearFilter}
+                onFilterToFeature={handleFilterToFeatureLocal}
+                onClearFilter={handleClearFilterLocal}
                 onShowBbox={handleShowBbox}
               >
                 <MapView
                   ref={mapRef}
                   styleUrl={style as any}
-                  visibleLayers={visibleLayers}
                   layers={layers}
                   onFeaturesHover={setHoveredFeatures}
                   enableHover={activeInfoMode !== null}
@@ -1262,9 +1078,6 @@ export default function App() {
                   marker={marker}
                   markerLuName={markerLuName ?? undefined}
                   onMouseMoveCoords={setMouseCoords}
-                  highlightedPoints={highlightedPoints}
-                  highlightedLines={highlightedLines}
-                  highlightedPolygons={highlightedPolygons}
                   onZoomChange={setCurrentZoom}
                   selectedFeature={selectedFeature}
                   hoveredFeature={hoveredFeature}
@@ -1345,11 +1158,11 @@ export default function App() {
                 highlightedPoints={highlightedPoints}
                 highlightedLines={highlightedLines}
                 highlightedPolygons={highlightedPolygons}
-                onToggleHighlightPoints={toggleHighlightPoints}
-                onToggleHighlightLines={toggleHighlightLines}
-                onToggleHighlightPolygons={toggleHighlightPolygons}
+                onToggleHighlightPoints={toggleHighlightPointsLocal}
+                onToggleHighlightLines={toggleHighlightLinesLocal}
+                onToggleHighlightPolygons={toggleHighlightPolygonsLocal}
                 selectedAttributeRow={selectedAttributeRow}
-                onAttributeRowSelect={handleAttributeRowSelect}
+                onAttributeRowSelect={handleAttributeRowSelectLocal}
                 activeInfoMode={activeInfoMode}
                 onZoomToFeature={(row, type) => {
                   if (mapRef.current && row) {
@@ -1417,8 +1230,8 @@ export default function App() {
                   setReportCardData({ row, type });
                   setShowReportCardDialog(true);
                 }}
-                onFilterToFeature={handleFilterToFeature}
-                onClearFilter={handleClearFilter}
+                onFilterToFeature={handleFilterToFeatureLocal}
+                onClearFilter={handleClearFilterLocal}
                 filteredFeature={filteredFeature}
               />
             </Panel>
