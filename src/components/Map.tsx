@@ -15,12 +15,12 @@ import { useMapStore } from '../store';
 
 export const MapView = forwardRef<any, {
   styleUrl: string | MapStyle | null;
- layers: Layer[];
- onFeaturesHover: (features: Feature[]) => void;
+  layers: Layer[];
+  onFeaturesHover: (features: Feature[]) => void;
   enableHover: boolean;
   infoMode: 'points' | 'lines' | 'polygons' | null;
   onClick: (features: Feature[], lngLat: LngLat) => void;
- marker: LngLat | null;
+  marker: LngLat | null;
   markerLuName?: string;
   onMouseMoveCoords: (coords: LngLat | null) => void;
   onZoomChange: (zoom: number) => void;
@@ -33,9 +33,9 @@ export const MapView = forwardRef<any, {
   rectangleSelection?: boolean;
   onRectangleSelect?: (bounds: BBox) => void;
   luPolygonFeature?: Feature | null; // Добавляем проп для отображения полигона ЛУ
-}>(({
+}>(({  
   styleUrl,
- layers,
+  layers,
   onFeaturesHover,
   enableHover,
   infoMode,
@@ -59,6 +59,8 @@ export const MapView = forwardRef<any, {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [rectangleStart, setRectangleStart] = useState<{lng: number, lat: number} | null>(null);
   const [rectangleCurrent, setRectangleCurrent] = useState<{lng: number, lat: number} | null>(null);
+  const updateLayersRef = useRef(false); // Реф для отслеживания активности updateLayers
+  const prevVisibleLayersRef = useRef<string>('');
 
   useImperativeHandle(ref, () => ({
     getMap: () => mapRef.current?.getMap()
@@ -74,8 +76,8 @@ export const MapView = forwardRef<any, {
   // Подписываемся на нужные состояния из стора
   const visibleLayers = useMapStore(state => state.visibleLayers);
 
-  // Мемоизируем строковое представление visibleLayers для оптимизации
-  const visibleLayersString = useMemo(() => {
+  // Создаем строковое представление visibleLayers, но используем реф для отслеживания изменений
+  const currentVisibleLayersString = useMemo(() => {
     return Array.from(visibleLayers).sort().join(',');
   }, [visibleLayers]);
 
@@ -200,155 +202,173 @@ export const MapView = forwardRef<any, {
   }, [mapLoaded, visibleLayers, onClick, rectangleSelection, rectangleStart, onRectangleSelect, filteredFeature]);
 
   const updateLayers = useCallback(() => {
-    if (!mapLoaded) return;
-    const map = mapRef.current?.getMap();
-    if (!map) return;
+    // Prevent recursive calls
+    if (updateLayersRef.current) return;
+    updateLayersRef.current = true;
+    
+    try {
+      if (!mapLoaded) return;
+      const map = mapRef.current?.getMap();
+      if (!map) return;
 
-    onRedrawStart?.();
+      onRedrawStart?.();
 
-    const allLayers = layers;
+      // Get layers from props (they come from the store)
+      const allLayers = layers;
 
-    allLayers.forEach(layer => {
-      const config = layersConfig[layer.name];
-      if (!config) return;
+      allLayers.forEach(layer => {
+        const config = layersConfig[layer.name];
+        if (!config) return;
 
-      const sourceId = config.layer.source as string;
-      const layerId = config.layer.id;
-      const highlightLayerId = `${layerId}-highlight`;
+        const sourceId = config.layer.source as string;
+        const layerId = config.layer.id;
+        const highlightLayerId = `${layerId}-highlight`;
 
-      if (visibleLayers.has(layer.name)) {
-        // Add source if not exists
-        if (!map.getSource(sourceId)) {
-          try {
-            map.addSource(sourceId, config.source);
-            // Wait for source to load and check available source-layers
-            map.once('sourcedata', (e: any) => {
-              if (e.sourceId === sourceId && e.isSourceLoaded) {
-                const source = map.getSource(sourceId) as any;
-                if (source && source.vectorLayers) {
+        // Get current visibleLayers from store to ensure we have latest state
+        const currentVisibleLayers = useMapStore.getState().visibleLayers;
+
+        if (currentVisibleLayers.has(layer.name)) {
+          // Add source if not exists
+          if (!map.getSource(sourceId)) {
+            try {
+              map.addSource(sourceId, config.source);
+              // Wait for source to load and check available source-layers
+              map.once('sourcedata', (e: any) => {
+                if (e.sourceId === sourceId && e.isSourceLoaded) {
+                  const source = map.getSource(sourceId) as any;
+                  if (source && source.vectorLayers) {
+                  }
                 }
-              }
-            });
-          } catch (error) {
-            console.error('Error adding source', sourceId, error);
-          }
-        } else {
-          // Source exists, check if it's loaded
-          const source = map.getSource(sourceId) as any;
-          if (source && source.vectorLayers) {
-          }
-        }
-        
-        // Add layer if not exists
-        if (!map.getLayer(layerId)) {
-          // Try to add layer, but if it fails due to source-layer mismatch, try alternative
-          try {
-            // Ensure LU layer is above STA layer when added
-            if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
-              map.addLayer(config.layer as any, 'gdx2.sta'); // Add LU layer above STA layer
-            } else {
-              map.addLayer(config.layer as any);
+              });
+            } catch (error) {
+              console.error('Error adding source', sourceId, error);
             }
-            map.triggerRepaint();
-          } catch (error: any) {
-            console.error('Error adding layer', layerId, error);
-            // If error is about source-layer, try with full name
-            if (error && error.message && error.message.includes('source-layer')) {
-              const altLayer = { ...config.layer };
-              // Try full name if currently using short name, or vice versa
-              if (altLayer['source-layer'] === layer.name) {
-                altLayer['source-layer'] = `gdx2.${layer.name}`;
+          } else {
+            // Source exists, check if it's loaded
+            const source = map.getSource(sourceId) as any;
+            if (source && source.vectorLayers) {
+            }
+          }
+          
+          // Add layer if not exists
+          if (!map.getLayer(layerId)) {
+            // Try to add layer, but if it fails due to source-layer mismatch, try alternative
+            try {
+              // Ensure LU layer is above STA layer when added
+              if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
+                map.addLayer(config.layer as any, 'gdx2.sta'); // Add LU layer above STA layer
               } else {
-                altLayer['source-layer'] = layer.name;
+                map.addLayer(config.layer as any);
               }
-              try {
-                if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
-                  map.addLayer(altLayer as any, 'gdx2.sta'); // Add LU layer above STA layer
+              map.triggerRepaint();
+            } catch (error: any) {
+              console.error('Error adding layer', layerId, error);
+              // If error is about source-layer, try with full name
+              if (error && error.message && error.message.includes('source-layer')) {
+                const altLayer = { ...config.layer };
+                // Try full name if currently using short name, or vice versa
+                if (altLayer['source-layer'] === layer.name) {
+                  altLayer['source-layer'] = `gdx2.${layer.name}`;
                 } else {
-                  map.addLayer(altLayer as any);
+                  altLayer['source-layer'] = layer.name;
                 }
-                map.triggerRepaint();
-              } catch (altError) {
-                console.error('Failed with alternative source-layer too', altError);
+                try {
+                  if (layer.name === 'lu' && map.getLayer('gdx2.sta')) {
+                    map.addLayer(altLayer as any, 'gdx2.sta'); // Add LU layer above STA layer
+                  } else {
+                    map.addLayer(altLayer as any);
+                  }
+                  map.triggerRepaint();
+                } catch (altError) {
+                  console.error('Failed with alternative source-layer too', altError);
+                }
               }
             }
           }
-        }
-        // Make sure layer is visible if it should be
-        if (map.getLayer(layerId) && map.getLayoutProperty(layerId, 'visibility') === 'none') {
-          map.setLayoutProperty(layerId, 'visibility', 'visible');
-        }
+          // Make sure layer is visible if it should be
+          if (map.getLayer(layerId) && map.getLayoutProperty(layerId, 'visibility') === 'none') {
+            map.setLayoutProperty(layerId, 'visibility', 'visible');
+          }
 
-        // Add highlight layer if there are highlighted features
-        const highlightedPoints = useMapStore.getState().highlightedPoints;
-        const highlightedLines = useMapStore.getState().highlightedLines;
-        const highlightedPolygons = useMapStore.getState().highlightedPolygons;
-        
-        let highlightedIds: string[] = [];
-        if (layer.name === 'stp' && highlightedPoints.size > 0) {
-          highlightedIds = Array.from(highlightedPoints);
-        } else if (layer.name === 'stl' && highlightedLines.size > 0) {
-          highlightedIds = Array.from(highlightedLines);
-        } else if (layer.name === 'sta' && highlightedPolygons.size > 0) {
-          highlightedIds = Array.from(highlightedPolygons);
-        }
+          // Get highlight state from store directly
+          const highlightedPoints = useMapStore.getState().highlightedPoints;
+          const highlightedLines = useMapStore.getState().highlightedLines;
+          const highlightedPolygons = useMapStore.getState().highlightedPolygons;
+          
+          let highlightedIds: string[] = [];
+          if (layer.name === 'stp' && highlightedPoints.size > 0) {
+            highlightedIds = Array.from(highlightedPoints);
+          } else if (layer.name === 'stl' && highlightedLines.size > 0) {
+            highlightedIds = Array.from(highlightedLines);
+          } else if (layer.name === 'sta' && highlightedPolygons.size > 0) {
+            highlightedIds = Array.from(highlightedPolygons);
+          }
 
-        if (highlightedIds.length > 0) {
-          if (!map.getLayer(highlightLayerId)) {
-            const highlightLayer = { ...config.layer };
-            highlightLayer.id = highlightLayerId;
-            highlightLayer.filter = ['in', 'id', ...highlightedIds.map(id => parseInt(id))];
-            // Modify style for highlight
-            if (highlightLayer.type === 'circle') {
-              highlightLayer.paint = {
-                ...highlightLayer.paint,
-                'circle-color': 'red',
-                'circle-radius': 6,
-              };
-            } else if (highlightLayer.type === 'line') {
-              highlightLayer.paint = {
-                ...highlightLayer.paint,
-                'line-color': 'red',
-                'line-width': 3,
-              };
-            } else if (highlightLayer.type === 'fill') {
-              highlightLayer.paint = {
-                ...highlightLayer.paint,
-                'fill-color': 'red',
-                'fill-opacity': 0.8,
-              };
+          if (highlightedIds.length > 0) {
+            if (!map.getLayer(highlightLayerId)) {
+              const highlightLayer = { ...config.layer };
+              highlightLayer.id = highlightLayerId;
+              highlightLayer.filter = ['in', 'id', ...highlightedIds.map(id => parseInt(id))];
+              // Modify style for highlight
+              if (highlightLayer.type === 'circle') {
+                highlightLayer.paint = {
+                  ...highlightLayer.paint,
+                  'circle-color': 'red',
+                  'circle-radius': 6,
+                };
+              } else if (highlightLayer.type === 'line') {
+                highlightLayer.paint = {
+                  ...highlightLayer.paint,
+                  'line-color': 'red',
+                  'line-width': 3,
+                };
+              } else if (highlightLayer.type === 'fill') {
+                highlightLayer.paint = {
+                  ...highlightLayer.paint,
+                  'fill-color': 'red',
+                  'fill-opacity': 0.8,
+                };
+              }
+              map.addLayer(highlightLayer as any, layerId); // Add above the main layer
+              map.triggerRepaint();
             }
-            map.addLayer(highlightLayer as any, layerId); // Add above the main layer
-            map.triggerRepaint();
+          } else {
+            // Remove highlight layer if no highlights
+            if (map.getLayer(highlightLayerId)) {
+              map.removeLayer(highlightLayerId);
+            }
           }
         } else {
-          // Remove highlight layer if no highlights
+          // Hide the layer if it exists
+          if (map.getLayer(layerId) && map.getLayoutProperty(layerId, 'visibility') !== 'none') {
+            map.setLayoutProperty(layerId, 'visibility', 'none');
+          }
+          // Remove highlight layer if it exists
           if (map.getLayer(highlightLayerId)) {
             map.removeLayer(highlightLayerId);
           }
         }
-      } else {
-        // Hide the layer if it exists
-        if (map.getLayer(layerId) && map.getLayoutProperty(layerId, 'visibility') !== 'none') {
-          map.setLayoutProperty(layerId, 'visibility', 'none');
-        }
-        // Remove highlight layer if it exists
-        if (map.getLayer(highlightLayerId)) {
-          map.removeLayer(highlightLayerId);
-        }
+      });
+
+      // Ensure LU layer is always above STA layer, even if added later
+      if (map.getLayer('gdx2.lu') && map.getLayer('gdx2.sta')) {
+        map.moveLayer('gdx2.lu', 'gdx2.sta'); // Move LU layer above STA layer
       }
-    });
 
-    // Ensure LU layer is always above STA layer, even if added later
-    if (map.getLayer('gdx2.lu') && map.getLayer('gdx2.sta')) {
-      map.moveLayer('gdx2.lu', 'gdx2.sta'); // Move LU layer above STA layer
+      // End redraw after a short delay to allow rendering
+      setTimeout(() => {
+        onRedrawEnd?.();
+        // Reset the flag after the timeout
+        updateLayersRef.current = false;
+      }, 100);
+    } finally {
+      // Reset the flag in case of error to prevent permanent blocking
+      // Only if it wasn't reset in the timeout callback
+      if (updateLayersRef.current) {
+        updateLayersRef.current = false;
+      }
     }
-
-    // End redraw after a short delay to allow rendering
-    setTimeout(() => {
-      onRedrawEnd?.();
-    }, 100);
-  }, [mapLoaded, layers, onRedrawStart, onRedrawEnd]); // Убираем visibleLayers из зависимостей updateLayers
+  }, [mapLoaded, layers, onRedrawStart, onRedrawEnd]); // Don't include visibleLayers to prevent frequent recreation
 
   // Добавляем эффект для отображения полигона ЛУ поверх остальных слоев
   useEffect(() => {
@@ -569,8 +589,12 @@ export const MapView = forwardRef<any, {
 
   // Используем строковое представление visibleLayers для оптимизации
   useEffect(() => {
-    updateLayers();
-  }, [mapLoaded, layers, visibleLayersString, updateLayers]); // Включаем updateLayers в зависимости, но используем строковое представление visibleLayers
+    // Only update layers when map is loaded and visibleLayersString has actually changed
+    if (mapLoaded && prevVisibleLayersRef.current !== currentVisibleLayersString) {
+      prevVisibleLayersRef.current = currentVisibleLayersString;
+      updateLayers();
+    }
+  }, [mapLoaded, currentVisibleLayersString, updateLayers]); // Включаем updateLayers в зависимости, но используем строковое представление visibleLayers
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -725,7 +749,12 @@ export const MapView = forwardRef<any, {
         {...viewState}
         className="w-full h-full"
         onLoad={() => setMapLoaded(true)}
-        onStyleLoad={() => updateLayers()}
+        onStyleLoad={() => {
+          // Call updateLayers only if not already in progress to avoid recursion
+          if (!updateLayersRef.current) {
+            updateLayers();
+          }
+        }}
         onMove={onMove}
         onMouseMove={onMouseMove}
         onMouseLeave={() => onMouseMoveCoords(null)}
