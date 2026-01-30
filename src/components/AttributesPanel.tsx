@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
-import { FeatureTable } from './map/FeatureTable';
 import { useMapStore } from '../store';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { AgGridReact } from 'ag-grid-react';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 import type { ReportRow, FilteredFeature, SelectedAttributeRow, Layer } from '../types';
 
 interface AttributesPanelProps {
@@ -20,7 +23,6 @@ interface AttributesPanelProps {
   onToggleHighlightPolygons: () => void; // deprecated - now using store
   selectedAttributeRow: SelectedAttributeRow | null;
   onAttributeRowSelect: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
-  activeInfoMode: 'points' | 'lines' | 'polygons' | null;
   onZoomToFeature: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
   onShowBbox: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
   onShowReportCard: (row: ReportRow, type: 'points' | 'lines' | 'polygons') => void;
@@ -31,7 +33,6 @@ interface AttributesPanelProps {
 
 export function AttributesPanel({ 
   onAttributeRowSelect,
-  activeInfoMode,
   onZoomToFeature,
   onShowBbox,
   onShowReportCard,
@@ -47,6 +48,7 @@ export function AttributesPanel({
     highlightedLines,
     highlightedPolygons,
     selectedAttributeRow,
+    activeInfoMode,
     toggleHighlightPoints,
     toggleHighlightLines,
     toggleHighlightPolygons,
@@ -59,7 +61,6 @@ export function AttributesPanel({
   const pointsData = attributesPointsData;
   const linesData = attributesLinesData;
   const polygonsData = attributesPolygonsData;
-  const selectedRow = selectedAttributeRow;
 
   // Handle attribute row selection
   const handleRowSelect = (row: ReportRow, type: 'points' | 'lines' | 'polygons') => {
@@ -82,149 +83,349 @@ export function AttributesPanel({
     handleClearFilter(type);
   };
 
+  // Determine the active tab based on store state or default to 'points'
+  const [activeTab, setActiveTab] = useState<'points' | 'lines' | 'polygons'>(activeInfoMode || 'points');
+
+  // Sync active tab with store's activeInfoMode when it changes
+  useEffect(() => {
+    if (activeInfoMode) {
+      setActiveTab(activeInfoMode);
+    }
+  }, [activeInfoMode]);
+
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-auto p-3 space-y-6">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Точки</h3>
-            <div className="flex items-center gap-2">
-              {pointsData.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleHighlightPoints()}
-                  >
-                    {highlightedPoints.size > 0 ? 'Снять выделение' : 'Выделить все'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onShowReportCard(pointsData[0], 'points')}
-                  >
-                    Отчет
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-          {pointsData.length > 0 ? (
-            <div className="space-y-2">
-              {pointsData.map((point, index) => (
-                <FeatureTable
-                  key={`point-${index}`}
-                  feature={{ layer: { id: 'gdx2.stp' }, properties: point } as any}
-                  index={index}
-                  selectedFeature={selectedRow?.type === 'points' && selectedRow.data.id === point.id ? { layer: { id: 'gdx2.stp' }, properties: point } as any : null}
-                  onFeatureSelect={(feature) => handleRowSelect(point, 'points')}
-                  onFeatureHover={() => {}}
-                  onZoomToFeature={(f) => onZoomToFeature(point, 'points')}
-                  onShowBbox={() => onShowBbox(point, 'points')}
-                  onFilterToFeature={(row, type) => handleFilterToFeatureLocal(row, 'points')}
-                  onClearFilter={() => handleClearFilterLocal('points')}
-                  isFiltered={!!filteredFeature && filteredFeature.row.id === point.id && filteredFeature.type === 'points'}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">Нет данных о точках</p>
-          )}
-        </div>
+      <div className="flex-1 overflow-auto p-3">
+         <Tabs 
+           value={activeTab} 
+           onValueChange={(value: 'points' | 'lines' | 'polygons') => {
+             setActiveTab(value);
+             // Update the store's activeInfoMode when tab changes
+             useMapStore.getState().setActiveInfoMode(value);
+           }} 
+           className="w-full"
+         >
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="points">Точки</TabsTrigger>
+            <TabsTrigger value="lines">Линии</TabsTrigger>
+            <TabsTrigger value="polygons">Полигоны</TabsTrigger>
+          </TabsList>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Линии</h3>
-            <div className="flex items-center gap-2">
-              {linesData.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleHighlightLines()}
-                  >
-                    {highlightedLines.size > 0 ? 'Снять выделение' : 'Выделить все'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onShowReportCard(linesData[0], 'lines')}
-                  >
-                    Отчет
-                  </Button>
-                </>
-              )}
+           {/* Points Tab */}
+          <TabsContent value="points" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Точки</h3>
+              <div className="flex items-center gap-2">
+                {pointsData.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleHighlightPoints()}
+                    >
+                      {highlightedPoints.size > 0 ? 'Снять выделение' : 'Выделить все'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onShowReportCard(pointsData[0], 'points')}
+                    >
+                      Отчет
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-          {linesData.length > 0 ? (
-            <div className="space-y-2">
-              {linesData.map((line, index) => (
-                <FeatureTable
-                  key={`line-${index}`}
-                  feature={{ layer: { id: 'gdx2.stl' }, properties: line } as any}
-                  index={index}
-                  selectedFeature={selectedRow?.type === 'lines' && selectedRow.data.id === line.id ? { layer: { id: 'gdx2.stl' }, properties: line } as any : null}
-                  onFeatureSelect={(feature) => handleRowSelect(line, 'lines')}
-                  onFeatureHover={() => {}}
-                  onZoomToFeature={(f) => onZoomToFeature(line, 'lines')}
-                  onShowBbox={() => onShowBbox(line, 'lines')}
-                  onFilterToFeature={(row, type) => handleFilterToFeatureLocal(row, 'lines')}
-                  onClearFilter={() => handleClearFilterLocal('lines')}
-                  isFiltered={!!filteredFeature && filteredFeature.row.id === line.id && filteredFeature.type === 'lines'}
+            {pointsData.length > 0 ? (
+              <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
+                <AgGridReact
+                  rowData={pointsData}
+                  columnDefs={[
+                    { field: 'id', headerName: 'ID', width: 100 },
+                    { field: 'avts', headerName: 'Автор', width: 120 },
+                    { field: 'name_otch', headerName: 'Отчет', width: 150 },
+                    { field: 'org_isp', headerName: 'Организация', width: 150 },
+                    { field: 'god_nach', headerName: 'Год начала', width: 100 },
+                    { field: 'god_end', headerName: 'Год окончания', width: 120 },
+                    { field: 'method', headerName: 'Метод', width: 120 },
+                    { field: 'nom_1000', headerName: 'Лист', width: 100 },
+                    { field: 'scale', headerName: 'Масштаб', width: 100 },
+                    { field: 'tgf', headerName: 'ТГФ', width: 100 },
+                    { field: 'in_n_rosg', headerName: 'инв. № РГФ', width: 120 },
+                    { field: 'in_n_tgf', headerName: 'инв. № ТГФ', width: 120 },
+                    { field: 'n_uk_rosg', headerName: '№ РГФ', width: 100 },
+                    { field: 'n_uk_tgf', headerName: '№ ТГФ', width: 100 },
+                    { field: 'web_uk_id', headerName: '№', width: 100 },
+                    { field: 'vid_iz', headerName: 'Вид', width: 120 },
+                  ]}
+                  rowSelection="single"
+                  onRowClicked={(event) => {
+                    handleRowSelect(event.data, 'points');
+                    // Trigger zoom to feature when row is clicked
+                    onZoomToFeature(event.data, 'points');
+                  }}
+                  animateRows={true}
+                  pagination={true}
+                  paginationPageSize={10}
+                  rowClassRules={{
+                    'selected-row': (params) => 
+                      selectedAttributeRow?.type === 'points' && 
+                      selectedAttributeRow.data.id === params.data.id
+                  }}
+                  getContextMenuItems={(params) => [
+                    'copy',
+                    'copyWithHeaders',
+                    'paste',
+                    'separator',
+                    'export',
+                    {
+                      name: 'Показать на карте',
+                      action: () => {
+                        if (params.node?.data) {
+                          onZoomToFeature(params.node.data, 'points');
+                        }
+                      }
+                    },
+                    {
+                      name: 'Показать bbox',
+                      action: () => {
+                        if (params.node?.data) {
+                          onShowBbox(params.node.data, 'points');
+                        }
+                      }
+                    },
+                    {
+                      name: 'Показать только этот',
+                      action: () => {
+                        if (params.node?.data) {
+                          handleFilterToFeatureLocal(params.node.data, 'points');
+                        }
+                      }
+                    },
+                    ...(filteredFeature?.type === 'points' ? [{
+                      name: 'Показать все',
+                      action: () => {
+                        handleClearFilterLocal('points');
+                      }
+                    }] : [])
+                  ]}
                 />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">Нет данных о линиях</p>
-          )}
-        </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Нет данных о точках</p>
+            )}
+          </TabsContent>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Полигоны</h3>
-            <div className="flex items-center gap-2">
-              {polygonsData.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleHighlightPolygons()}
-                  >
-                    {highlightedPolygons.size > 0 ? 'Снять выделение' : 'Выделить все'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onShowReportCard(polygonsData[0], 'polygons')}
-                  >
-                    Отчет
-                  </Button>
-                </>
-              )}
+          {/* Lines Tab */}
+          <TabsContent value="lines" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Линии</h3>
+              <div className="flex items-center gap-2">
+                {linesData.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleHighlightLines()}
+                    >
+                      {highlightedLines.size > 0 ? 'Снять выделение' : 'Выделить все'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onShowReportCard(linesData[0], 'lines')}
+                    >
+                      Отчет
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-          {polygonsData.length > 0 ? (
-            <div className="space-y-2">
-              {polygonsData.map((polygon, index) => (
-                <FeatureTable
-                  key={`polygon-${index}`}
-                  feature={{ layer: { id: 'gdx2.sta' }, properties: polygon } as any}
-                  index={index}
-                  selectedFeature={selectedRow?.type === 'polygons' && selectedRow.data.id === polygon.id ? { layer: { id: 'gdx2.sta' }, properties: polygon } as any : null}
-                  onFeatureSelect={(feature) => handleRowSelect(polygon, 'polygons')}
-                  onFeatureHover={() => {}}
-                  onZoomToFeature={(f) => onZoomToFeature(polygon, 'polygons')}
-                  onShowBbox={() => onShowBbox(polygon, 'polygons')}
-                  onFilterToFeature={(row, type) => handleFilterToFeatureLocal(row, 'polygons')}
-                  onClearFilter={() => handleClearFilterLocal('polygons')}
-                  isFiltered={!!filteredFeature && filteredFeature.row.id === polygon.id && filteredFeature.type === 'polygons'}
+            {linesData.length > 0 ? (
+              <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
+                <AgGridReact
+                  rowData={linesData}
+                  columnDefs={[
+                    { field: 'id', headerName: 'ID', width: 100 },
+                    { field: 'avts', headerName: 'Автор', width: 120 },
+                    { field: 'name_otch', headerName: 'Отчет', width: 150 },
+                    { field: 'org_isp', headerName: 'Организация', width: 150 },
+                    { field: 'god_nach', headerName: 'Год начала', width: 100 },
+                    { field: 'god_end', headerName: 'Год окончания', width: 120 },
+                    { field: 'method', headerName: 'Метод', width: 120 },
+                    { field: 'nom_1000', headerName: 'Лист', width: 100 },
+                    { field: 'scale', headerName: 'Масштаб', width: 100 },
+                    { field: 'tgf', headerName: 'ТГФ', width: 100 },
+                    { field: 'in_n_rosg', headerName: 'инв. № РГФ', width: 120 },
+                    { field: 'in_n_tgf', headerName: 'инв. № ТГФ', width: 120 },
+                    { field: 'n_uk_rosg', headerName: '№ РГФ', width: 100 },
+                    { field: 'n_uk_tgf', headerName: '№ ТГФ', width: 100 },
+                    { field: 'web_uk_id', headerName: '№', width: 100 },
+                    { field: 'vid_iz', headerName: 'Вид', width: 120 },
+                  ]}
+                  rowSelection="single"
+                  onRowClicked={(event) => {
+                    handleRowSelect(event.data, 'lines');
+                    // Trigger zoom to feature when row is clicked
+                    onZoomToFeature(event.data, 'lines');
+                  }}
+                  animateRows={true}
+                  pagination={true}
+                  paginationPageSize={10}
+                  rowClassRules={{
+                    'selected-row': (params) => 
+                      selectedAttributeRow?.type === 'lines' && 
+                      selectedAttributeRow.data.id === params.data.id
+                  }}
+                  getContextMenuItems={(params) => [
+                    'copy',
+                    'copyWithHeaders',
+                    'paste',
+                    'separator',
+                    'export',
+                    {
+                      name: 'Показать на карте',
+                      action: () => {
+                        if (params.node?.data) {
+                          onZoomToFeature(params.node.data, 'lines');
+                        }
+                      }
+                    },
+                    {
+                      name: 'Показать bbox',
+                      action: () => {
+                        if (params.node?.data) {
+                          onShowBbox(params.node.data, 'lines');
+                        }
+                      }
+                    },
+                    {
+                      name: 'Показать только этот',
+                      action: () => {
+                        if (params.node?.data) {
+                          handleFilterToFeatureLocal(params.node.data, 'lines');
+                        }
+                      }
+                    },
+                    ...(filteredFeature?.type === 'lines' ? [{
+                      name: 'Показать все',
+                      action: () => {
+                        handleClearFilterLocal('lines');
+                      }
+                    }] : [])
+                  ]}
                 />
-              ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Нет данных о линиях</p>
+            )}
+          </TabsContent>
+
+          {/* Polygons Tab */}
+          <TabsContent value="polygons" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Полигоны</h3>
+              <div className="flex items-center gap-2">
+                {polygonsData.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleHighlightPolygons()}
+                    >
+                      {highlightedPolygons.size > 0 ? 'Снять выделение' : 'Выделить все'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onShowReportCard(polygonsData[0], 'polygons')}
+                    >
+                      Отчет
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">Нет данных о полигонах</p>
-          )}
-        </div>
+            {polygonsData.length > 0 ? (
+              <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
+                <AgGridReact
+                  rowData={polygonsData}
+                  columnDefs={[
+                    { field: 'id', headerName: 'ID', width: 100 },
+                    { field: 'avts', headerName: 'Автор', width: 120 },
+                    { field: 'name_otch', headerName: 'Отчет', width: 150 },
+                    { field: 'org_isp', headerName: 'Организация', width: 150 },
+                    { field: 'god_nach', headerName: 'Год начала', width: 100 },
+                    { field: 'god_end', headerName: 'Год окончания', width: 120 },
+                    { field: 'method', headerName: 'Метод', width: 120 },
+                    { field: 'nom_1000', headerName: 'Лист', width: 100 },
+                    { field: 'scale', headerName: 'Масштаб', width: 100 },
+                    { field: 'tgf', headerName: 'ТГФ', width: 100 },
+                    { field: 'in_n_rosg', headerName: 'инв. № РГФ', width: 120 },
+                    { field: 'in_n_tgf', headerName: 'инв. № ТГФ', width: 120 },
+                    { field: 'n_uk_rosg', headerName: '№ РГФ', width: 100 },
+                    { field: 'n_uk_tgf', headerName: '№ ТГФ', width: 100 },
+                    { field: 'web_uk_id', headerName: '№', width: 100 },
+                    { field: 'vid_iz', headerName: 'Вид', width: 120 },
+                  ]}
+                  rowSelection="single"
+                  onRowClicked={(event) => {
+                    handleRowSelect(event.data, 'polygons');
+                    // Trigger zoom to feature when row is clicked
+                    onZoomToFeature(event.data, 'polygons');
+                  }}
+                  animateRows={true}
+                  pagination={true}
+                  paginationPageSize={10}
+                  rowClassRules={{
+                    'selected-row': (params) => 
+                      selectedAttributeRow?.type === 'polygons' && 
+                      selectedAttributeRow.data.id === params.data.id
+                  }}
+                  getContextMenuItems={(params) => [
+                    'copy',
+                    'copyWithHeaders',
+                    'paste',
+                    'separator',
+                    'export',
+                    {
+                      name: 'Показать на карте',
+                      action: () => {
+                        if (params.node?.data) {
+                          onZoomToFeature(params.node.data, 'polygons');
+                        }
+                      }
+                    },
+                    {
+                      name: 'Показать bbox',
+                      action: () => {
+                        if (params.node?.data) {
+                          onShowBbox(params.node.data, 'polygons');
+                        }
+                      }
+                    },
+                    {
+                      name: 'Показать только этот',
+                      action: () => {
+                        if (params.node?.data) {
+                          handleFilterToFeatureLocal(params.node.data, 'polygons');
+                        }
+                      }
+                    },
+                    ...(filteredFeature?.type === 'polygons' ? [{
+                      name: 'Показать все',
+                      action: () => {
+                        handleClearFilterLocal('polygons');
+                      }
+                    }] : [])
+                  ]}
+                />
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Нет данных о полигонах</p>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
